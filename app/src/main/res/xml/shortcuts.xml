@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<shortcuts xmlns:android="http://schemas.android.com/apk/res/android">
+    <shortcut android:shortcutId="command" android:enabled="true" android:icon="@drawable/ic_notification" android:shortcutShortLabel="@string/shortcut_command">
+        <intent android:action="dev.personal.ledger.COMMAND" android:targetPackage="dev.personal.ledger" android:targetClass="dev.personal.ledger.MainActivity"/>
+    </shortcut>
+    <shortcut android:shortcutId="plan" android:enabled="true" android:icon="@drawable/ic_notification" android:shortcutShortLabel="@string/shortcut_plan">
+        <intent android:action="dev.personal.ledger.PLAN" android:targetPackage="dev.personal.ledger" android:targetClass="dev.personal.ledger.MainActivity"/>
+    </shortcut>
+</shortcuts>
