@@ -1,5 +1,6 @@
 package dev.personal.ledger.ui.plan
 
+import dev.personal.ledger.i18n.tr
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -86,25 +87,25 @@ fun RecurringListScreen(d: Dashboard, vm: LedgerViewModel, nav: Nav, kind: Recur
     val active = all.filter { it.active }.sortedBy { it.nextDue }
     val inactive = all.filter { !it.active }
     val monthly = active.sumOf { it.cadence.monthly(it.amount) }
-    val title = when (kind) { RecurringKind.SUBSCRIPTION -> "Subscriptions"; RecurringKind.BILL -> "Bills"; RecurringKind.INCOME -> "Income"; else -> "Recurring" }
-    Screen(title, onBack = { nav.pop() }, actions = { IconAction(Icons.Rounded.Add, "Add") { nav.push(Route.EditRecurring(null, kind ?: RecurringKind.BILL)) } }) {
+    val title = when (kind) { RecurringKind.SUBSCRIPTION -> tr("Subscriptions"); RecurringKind.BILL -> tr("Bills"); RecurringKind.INCOME -> tr("Income"); else -> tr("Recurring") }
+    Screen(title, onBack = { nav.pop() }, actions = { IconAction(Icons.Rounded.Add, tr("Add")) { nav.push(Route.EditRecurring(null, kind ?: RecurringKind.BILL)) } }) {
         item {
             Column(Modifier.padding(horizontal = Space.gutter, vertical = Space.s)) {
-                Text("${active.size} active", style = LedgerTheme.type.label, color = c.textMuted)
+                Text(tr("%d active", active.size), style = LedgerTheme.type.label, color = c.textMuted)
                 Row(verticalAlignment = Alignment.Bottom) {
                     Amount(monthly, style = LedgerTheme.type.hero, format = AmountFormat.COMPACT)
-                    Text(" / month", style = LedgerTheme.type.bodyStrong, color = c.textMuted, modifier = Modifier.padding(bottom = 6.dp))
+                    Text(" " + tr("/ month"), style = LedgerTheme.type.bodyStrong, color = c.textMuted, modifier = Modifier.padding(bottom = 6.dp))
                 }
-                Text("${Money.compact(monthly * 12)} / year", style = LedgerTheme.type.bodyStrong, color = c.textMuted)
+                Text(tr("%s / year", Money.compact(monthly * 12)), style = LedgerTheme.type.bodyStrong, color = c.textMuted)
             }
         }
         if (active.isEmpty()) item {
-            EmptyState(Icons.Rounded.Subscriptions, "Nothing here yet", "Add $title so they show up in your timeline, forecast and safe-to-spend.", action = "Add") {
+            EmptyState(Icons.Rounded.Subscriptions, tr("Nothing here yet"), tr("Add %s so they show up in your timeline, forecast and safe-to-spend.", title.lowercase()), action = tr("Add")) {
                 nav.push(Route.EditRecurring(null, kind ?: RecurringKind.BILL))
             }
         }
         if (active.isNotEmpty()) {
-            item { SectionHeader("Upcoming charges", Modifier.padding(top = Space.m)) }
+            item { SectionHeader(tr("Upcoming charges"), Modifier.padding(top = Space.m)) }
             items(active.take(5), key = { "u${it.id}" }) { r ->
                 Row(Modifier.fillMaxWidth().padding(horizontal = Space.gutter, vertical = 6.dp), verticalAlignment = Alignment.CenterVertically) {
                     Text(Fmt.monthDay(r.nextDue.epochDayToDate()), style = LedgerTheme.type.label, color = c.textMuted, modifier = Modifier.width(64.dp))
@@ -112,11 +113,11 @@ fun RecurringListScreen(d: Dashboard, vm: LedgerViewModel, nav: Nav, kind: Recur
                     Amount(r.amount, color = if (r.variable) c.textMuted else c.text)
                 }
             }
-            item { SectionHeader("All", Modifier.padding(top = Space.m)) }
+            item { SectionHeader(tr("All"), Modifier.padding(top = Space.m)) }
             items(active, key = { it.id }) { r -> RecurringRow(d, r) { nav.push(Route.EditRecurring(r.id, r.kind)) } }
         }
         if (inactive.isNotEmpty()) {
-            item { SectionHeader("Paused", Modifier.padding(top = Space.m)) }
+            item { SectionHeader(tr("Paused"), Modifier.padding(top = Space.m)) }
             items(inactive, key = { it.id }) { r -> Column(Modifier.graphicsLayer { alpha = 0.55f }) { RecurringRow(d, r) { nav.push(Route.EditRecurring(r.id, r.kind)) } } }
         }
     }
@@ -130,15 +131,15 @@ private fun RecurringRow(d: Dashboard, r: Recurring, onClick: () -> Unit) {
     val acc = d.data.accountById[r.accountId]?.name ?: ""
     ListRow(
         r.name,
-        subtitle = listOfNotNull(r.cadence.label, acc, if (r.autoPay) "auto-pay" else null, if (r.variable) "variable" else null).joinToString(" · "),
+        subtitle = listOfNotNull(cadenceLabel(r.cadence), acc, if (r.autoPay) tr("auto-pay") else null, if (r.variable) tr("variable") else null).joinToString(" · "),
         leading = { IconWell(LedgerIcons.of(r.icon), hue(r.colorIndex)) },
         onClick = onClick,
     ) {
         Column(horizontalAlignment = Alignment.End) {
             Amount(r.amount, color = if (r.variable) c.textMuted else c.text)
             when {
-                prev != null && prev != r.amount -> Tag("${if (r.amount > prev) "↑" else "↓"} from ${Money.compact(prev)}", if (r.amount > prev) Tone.CAUTION else Tone.POSITIVE)
-                else -> Text("next ${Fmt.monthDay(r.nextDue.epochDayToDate())}", style = LedgerTheme.type.caption, color = c.textMuted)
+                prev != null && prev != r.amount -> Tag(tr("%s from %s", if (r.amount > prev) "↑" else "↓", Money.compact(prev)), if (r.amount > prev) Tone.CAUTION else Tone.POSITIVE)
+                else -> Text(tr("next %s", Fmt.monthDay(r.nextDue.epochDayToDate())), style = LedgerTheme.type.caption, color = c.textMuted)
             }
         }
     }
@@ -165,42 +166,42 @@ fun EditRecurringScreen(d: Dashboard, vm: LedgerViewModel, nav: Nav, id: Long?, 
     val parsed = Money.parse(amount)
     val valid = name.isNotBlank() && parsed != null && parsed > 0 && account != null && (kind != RecurringKind.TRANSFER || (toAccount != null && toAccount != account))
 
-    Screen(if (existing == null) "New ${kind.name.lowercase()}" else existing.name, onBack = { nav.pop() }) {
+    Screen(if (existing == null) tr("New %s", kindLabel(kind).lowercase()) else existing.name, onBack = { nav.pop() }) {
         item {
-            FieldLabel("Type")
-            ChoiceRow(RecurringKind.entries, kind, { it.name.lowercase().replaceFirstChar { c -> c.uppercase() } }) { kind = it }
-            FieldLabel("Name"); TextInput(name, { name = it }, "Netflix, Tiền trọ, Điện…")
-            FieldLabel(if (variable) "Typical amount (used as estimate)" else "Amount"); AmountInput(amount, { amount = it })
+            FieldLabel(tr("Type"))
+            ChoiceRow(RecurringKind.entries, kind, { kindLabel(it) }) { kind = it }
+            FieldLabel(tr("Name")); TextInput(name, { name = it }, "Netflix, Tiền trọ, Điện…")
+            FieldLabel(if (variable) tr("Typical amount (used as estimate)") else tr("Amount")); AmountInput(amount, { amount = it })
             if (kind == RecurringKind.BILL || kind == RecurringKind.SUBSCRIPTION)
-                ToggleRow("Variable amount", variable, "You'll be reminded to enter the actual amount (e.g. electricity)") { variable = it; if (it) autoPay = false }
-            FieldLabel("Repeats"); ChoiceRow(Cadence.entries, cadence, { it.label }) { cadence = it }
-            FieldLabel("Next due"); DateField(next) { next = it }
-            FieldLabel(if (kind == RecurringKind.INCOME) "Paid into" else if (kind == RecurringKind.TRANSFER) "From" else "Paid from")
+                ToggleRow(tr("Variable amount"), variable, tr("You'll be reminded to enter the actual amount (e.g. electricity)")) { variable = it; if (it) autoPay = false }
+            FieldLabel(tr("Repeats")); ChoiceRow(Cadence.entries, cadence, { cadenceLabel(it) }) { cadence = it }
+            FieldLabel(tr("Next due")); DateField(next) { next = it }
+            FieldLabel(if (kind == RecurringKind.INCOME) tr("Paid into") else if (kind == RecurringKind.TRANSFER) tr("From") else tr("Paid from"))
             AccountChoice(accounts, account) { account = it }
-            if (kind == RecurringKind.TRANSFER) { FieldLabel("To"); AccountChoice(accounts.filter { it.id != account }, toAccount) { toAccount = it } }
+            if (kind == RecurringKind.TRANSFER) { FieldLabel(tr("To")); AccountChoice(accounts.filter { it.id != account }, toAccount) { toAccount = it } }
             if (kind != RecurringKind.TRANSFER) {
-                FieldLabel("Category")
+                FieldLabel(tr("Category"))
                 CategoryChoice(d.data.categories.filter { it.isIncome == (kind == RecurringKind.INCOME) && !it.archived }, category) { category = it }
             }
-            FieldLabel("Icon"); IconChoice(icon, hue(color)) { icon = it }
+            FieldLabel(tr("Icon")); IconChoice(icon, hue(color)) { icon = it }
             Spacer(Modifier.height(Space.s)); HueChoice(color) { color = it }
             Spacer(Modifier.height(Space.m))
-            if (!variable) ToggleRow("Auto-pay", autoPay, "Recorded automatically on the due date") { autoPay = it }
-            if (kind == RecurringKind.INCOME) ToggleRow("This is my salary", salary, "Safe to spend counts down to this date") { salary = it }
-            ToggleRow("Active", active) { active = it }
+            if (!variable) ToggleRow(tr("Auto-pay"), autoPay, tr("Recorded automatically on the due date")) { autoPay = it }
+            if (kind == RecurringKind.INCOME) ToggleRow(tr("This is my salary"), salary, tr("Safe to spend counts down to this date")) { salary = it }
+            ToggleRow(tr("Active"), active) { active = it }
             if (existing != null) {
                 val history = d.data.priceChanges.filter { it.recurringId == existing.id }.sortedByDescending { it.effectiveDay }
                 if (history.size > 1) {
-                    SectionHeader("Price history", Modifier.padding(top = Space.m))
+                    SectionHeader(tr("Price history"), Modifier.padding(top = Space.m))
                     history.forEach { p ->
                         Row(Modifier.fillMaxWidth().padding(horizontal = Space.gutter, vertical = 6.dp)) {
-                            Text("since ${Fmt.dayMonth(p.effectiveDay.epochDayToDate())} ${p.effectiveDay.epochDayToDate().year}", style = LedgerTheme.type.label, color = LedgerTheme.colors.textMuted, modifier = Modifier.weight(1f))
+                            Text(tr("since %s", Fmt.dayMonth(p.effectiveDay.epochDayToDate()) + "/" + p.effectiveDay.epochDayToDate().year), style = LedgerTheme.type.label, color = LedgerTheme.colors.textMuted, modifier = Modifier.weight(1f))
                             Amount(p.amount, format = AmountFormat.NUMBER)
                         }
                     }
                 }
             }
-            FormFooter("Save", valid, onSave = {
+            FormFooter(tr("Save"), valid, onSave = {
                 vm.saveRecurring(Recurring(
                     id = existing?.id ?: 0, kind = kind, name = name.trim(), amount = parsed!!, variable = variable, cadence = cadence,
                     nextDue = next.toEpochDay(), anchorDay = next.dayOfMonth, accountId = account!!, toAccountId = if (kind == RecurringKind.TRANSFER) toAccount else null,
@@ -208,7 +209,7 @@ fun EditRecurringScreen(d: Dashboard, vm: LedgerViewModel, nav: Nav, id: Long?, 
                     isSalary = kind == RecurringKind.INCOME && salary, icon = icon, colorIndex = color, note = existing?.note ?: "",
                 ))
                 nav.pop()
-            }, destructive = if (existing != null) "Delete" else null, onDestructive = existing?.let { e -> { vm.deleteRecurring(e); nav.pop() } })
+            }, destructive = if (existing != null) tr("Delete") else null, onDestructive = existing?.let { e -> { vm.deleteRecurring(e); nav.pop() } })
         }
     }
 }
@@ -221,15 +222,15 @@ fun InstallmentListScreen(d: Dashboard, vm: LedgerViewModel, nav: Nav) {
     val plans = d.data.installments.sortedBy { it.status.ordinal }
     val progress = plans.associate { it.id to Installments.progress(d.data, it) }
     val active = plans.filter { it.status == InstallmentStatus.ACTIVE && progress[it.id]!!.nextIndex != null }
-    Screen("Installments", onBack = { nav.pop() }, actions = { IconAction(Icons.Rounded.Add, "Add plan") { nav.push(Route.EditInstallment(null)) } }) {
+    Screen(tr("Installments"), onBack = { nav.pop() }, actions = { IconAction(Icons.Rounded.Add, tr("Add plan")) { nav.push(Route.EditInstallment(null)) } }) {
         item {
             Row(Modifier.padding(horizontal = Space.gutter, vertical = Space.s)) {
-                Metric("Remaining debt", active.sumOf { progress[it.id]!!.remaining }, Modifier.weight(1f), style = LedgerTheme.type.display)
-                Metric("Monthly burden", active.sumOf { progress[it.id]!!.nextAmount }, Modifier.weight(1f), style = LedgerTheme.type.display)
+                Metric(tr("Remaining debt"), active.sumOf { progress[it.id]!!.remaining }, Modifier.weight(1f), style = LedgerTheme.type.display)
+                Metric(tr("Monthly burden"), active.sumOf { progress[it.id]!!.nextAmount }, Modifier.weight(1f), style = LedgerTheme.type.display)
             }
         }
         if (plans.isEmpty()) item {
-            EmptyState(Icons.Rounded.CreditScore, "No installment plans", "Track 0% card installments and pay-later plans as real debts with a schedule.", action = "Add plan") { nav.push(Route.EditInstallment(null)) }
+            EmptyState(Icons.Rounded.CreditScore, tr("No installment plans"), tr("Track 0% card installments and pay-later plans as real debts with a schedule."), action = tr("Add plan")) { nav.push(Route.EditInstallment(null)) }
         }
         items(plans, key = { it.id }) { p ->
             val pr = progress[p.id]!!
@@ -239,19 +240,19 @@ fun InstallmentListScreen(d: Dashboard, vm: LedgerViewModel, nav: Nav) {
                     Spacer(Modifier.width(Space.m))
                     Column(Modifier.weight(1f)) {
                         Text(p.name, style = LedgerTheme.type.headline, color = c.text)
-                        Text("Total ${Money.compact(p.totalPayable)} · ${d.data.accountById[p.accountId]?.name ?: ""}", style = LedgerTheme.type.caption, color = c.textMuted)
+                        Text(tr("Total %s · %s", Money.compact(p.totalPayable), d.data.accountById[p.accountId]?.name ?: ""), style = LedgerTheme.type.caption, color = c.textMuted)
                     }
                     Column(horizontalAlignment = Alignment.End) {
                         Amount(pr.remaining, style = LedgerTheme.type.headline)
-                        Text("remaining", style = LedgerTheme.type.caption, color = c.textMuted)
+                        Text(tr("remaining"), style = LedgerTheme.type.caption, color = c.textMuted)
                     }
                 }
                 Spacer(Modifier.height(Space.m))
                 PeriodTrack(p.periods, pr.paidPeriods)
                 Spacer(Modifier.height(Space.s))
                 Row {
-                    Text("${pr.paidPeriods} / ${p.periods} paid", style = LedgerTheme.type.label, color = c.text, modifier = Modifier.weight(1f))
-                    Text(pr.nextDue?.let { "Next ${Money.compact(pr.nextAmount)} on ${Fmt.monthDay(it)}" } ?: "Completed", style = LedgerTheme.type.label, color = if (pr.nextDue == null) c.positive else c.textMuted)
+                    Text(tr("%d / %d paid", pr.paidPeriods, p.periods), style = LedgerTheme.type.label, color = c.text, modifier = Modifier.weight(1f))
+                    Text(pr.nextDue?.let { tr("Next %s on %s", Money.compact(pr.nextAmount), Fmt.monthDay(it)) } ?: tr("Completed"), style = LedgerTheme.type.label, color = if (pr.nextDue == null) c.positive else c.textMuted)
                 }
             }
         }
@@ -277,30 +278,30 @@ fun InstallmentDetailScreen(d: Dashboard, vm: LedgerViewModel, nav: Nav, id: Lon
     val p = d.data.installments.firstOrNull { it.id == id } ?: run { nav.pop(); return }
     val pr = Installments.progress(d.data, p)
     val first = p.firstDue.epochDayToDate()
-    Screen(p.name, onBack = { nav.pop() }, subtitle = p.note.ifBlank { null }, actions = { IconAction(LedgerIcons.of("more"), "Edit") { nav.push(Route.EditInstallment(p.id)) } }) {
+    Screen(p.name, onBack = { nav.pop() }, subtitle = p.note.ifBlank { null }, actions = { IconAction(LedgerIcons.of("more"), tr("Edit")) { nav.push(Route.EditInstallment(p.id)) } }) {
         item {
             Column(Modifier.padding(horizontal = Space.gutter, vertical = Space.s)) {
-                Text("Remaining", style = LedgerTheme.type.label, color = c.textMuted)
+                Text(tr("Remaining"), style = LedgerTheme.type.label, color = c.textMuted)
                 Amount(pr.remaining, style = LedgerTheme.type.hero, format = AmountFormat.FULL)
                 Spacer(Modifier.height(Space.m))
                 PeriodTrack(p.periods, pr.paidPeriods)
                 Spacer(Modifier.height(Space.s))
-                Text("${pr.paidPeriods} of ${p.periods} paid · ${Money.compact(pr.paidAmount)} of ${Money.compact(p.totalPayable)}", style = LedgerTheme.type.label, color = c.textMuted)
+                Text(tr("%d of %d paid · %s of %s", pr.paidPeriods, p.periods, Money.compact(pr.paidAmount), Money.compact(p.totalPayable)), style = LedgerTheme.type.label, color = c.textMuted)
             }
         }
         item { RemainingChart(p, pr.paidPeriods) }
         item {
             LedgerCard(Modifier.fillMaxWidth().padding(horizontal = Space.l, vertical = Space.s)) {
                 listOf(
-                    "Original amount" to Money.full(p.principal),
-                    "Interest" to Money.full(p.interest),
-                    "Fees" to Money.full(p.fees),
-                    "Total payable" to Money.full(p.totalPayable),
-                    "Per period" to Money.full(p.periodAmount(0)),
-                    "First payment" to Fmt.full(first),
-                    "Last payment" to Fmt.full(Installments.dueOf(first, p.periods - 1)),
-                    "Paid from" to (d.data.accountById[p.accountId]?.name ?: "—"),
-                    "Status" to if (pr.nextIndex == null) "Completed" else if (p.autoPay) "Active · auto-recorded" else "Active",
+                    tr("Original amount") to Money.full(p.principal),
+                    tr("Interest") to Money.full(p.interest),
+                    tr("Fees") to Money.full(p.fees),
+                    tr("Total payable") to Money.full(p.totalPayable),
+                    tr("Per period") to Money.full(p.periodAmount(0)),
+                    tr("First payment") to Fmt.full(first),
+                    tr("Last payment") to Fmt.full(Installments.dueOf(first, p.periods - 1)),
+                    tr("Paid from") to (d.data.accountById[p.accountId]?.name ?: "—"),
+                    tr("Status") to if (pr.nextIndex == null) tr("Completed") else if (p.autoPay) tr("Active · auto-recorded") else tr("Active"),
                 ).forEachIndexed { i, (k, v) ->
                     Row(Modifier.fillMaxWidth().padding(vertical = 8.dp)) {
                         Text(k, style = LedgerTheme.type.label, color = c.textMuted, modifier = Modifier.weight(1f))
@@ -313,11 +314,11 @@ fun InstallmentDetailScreen(d: Dashboard, vm: LedgerViewModel, nav: Nav, id: Lon
         if (pr.nextIndex != null) item {
             Spacer(Modifier.height(Space.m))
             // Auto-recorded plans never offer a manual button: recording it twice would double count.
-            if (p.autoPay) Text("Payment ${pr.nextIndex + 1} of ${Money.compact(pr.nextAmount)} is recorded automatically on ${Fmt.dayMonth(pr.nextDue!!)}.",
+            if (p.autoPay) Text(tr("Payment %d (%s) is recorded automatically on %s.", pr.nextIndex + 1, Money.compact(pr.nextAmount), Fmt.dayMonth(pr.nextDue!!)),
                 style = LedgerTheme.type.label, color = c.textMuted, modifier = Modifier.padding(horizontal = Space.gutter))
-            else PrimaryButton("Record payment ${pr.nextIndex + 1} · ${Money.compact(pr.nextAmount)}", Modifier.fillMaxWidth().padding(horizontal = Space.l)) { vm.payInstallment(p) }
+            else PrimaryButton(tr("Record payment %d · %s", pr.nextIndex + 1, Money.compact(pr.nextAmount)), Modifier.fillMaxWidth().padding(horizontal = Space.l)) { vm.payInstallment(p) }
         }
-        item { SectionHeader("Schedule", Modifier.padding(top = Space.l)) }
+        item { SectionHeader(tr("Schedule"), Modifier.padding(top = Space.l)) }
         items((0 until p.periods).toList()) { i ->
             val due = Installments.dueOf(first, i)
             val paid = i < pr.paidPeriods
@@ -326,7 +327,7 @@ fun InstallmentDetailScreen(d: Dashboard, vm: LedgerViewModel, nav: Nav, id: Lon
                 Text(Fmt.full(due), style = LedgerTheme.type.body, color = if (paid) c.textMuted else c.text, modifier = Modifier.weight(1f))
                 Amount(p.periodAmount(i), color = if (paid) c.textMuted else c.text)
                 Spacer(Modifier.width(Space.s))
-                Tag(if (paid) "Paid" else if (i == pr.nextIndex) "Next" else "Due", if (paid) Tone.POSITIVE else if (i == pr.nextIndex) Tone.ACCENT else Tone.NEUTRAL)
+                Tag(if (paid) tr("Paid") else if (i == pr.nextIndex) tr("Next") else tr("Due"), if (paid) Tone.POSITIVE else if (i == pr.nextIndex) Tone.ACCENT else Tone.NEUTRAL)
             }
         }
     }
@@ -337,7 +338,7 @@ fun InstallmentDetailScreen(d: Dashboard, vm: LedgerViewModel, nav: Nav, id: Lon
 private fun RemainingChart(p: Installment, paid: Int) {
     val c = LedgerTheme.colors
     LedgerCard(Modifier.fillMaxWidth().padding(horizontal = Space.l, vertical = Space.s)) {
-        Text("Balance after each payment", style = LedgerTheme.type.label, color = c.textMuted)
+        Text(tr("Balance after each payment"), style = LedgerTheme.type.label, color = c.textMuted)
         Spacer(Modifier.height(Space.m))
         Canvas(Modifier.fillMaxWidth().height(90.dp)) {
             val n = p.periods
@@ -374,30 +375,38 @@ fun EditInstallmentScreen(d: Dashboard, vm: LedgerViewModel, nav: Nav, id: Long?
     val p = Money.parse(principal); val i = Money.parse(interest.ifBlank { "0" }); val f = Money.parse(fees.ifBlank { "0" })
     val n = periods.toIntOrNull(); val pre = prepaid.toIntOrNull() ?: 0
     val valid = name.isNotBlank() && p != null && p > 0 && i != null && f != null && n != null && n in 1..120 && pre in 0..n && account != null
-    Screen(if (existing == null) "New installment plan" else existing.name, onBack = { nav.pop() }) {
+    Screen(if (existing == null) tr("New installment plan") else existing.name, onBack = { nav.pop() }) {
         item {
-            FieldLabel("What did you buy?"); TextInput(name, { name = it }, "MacBook, iPhone, xe máy…")
-            FieldLabel("Original amount"); AmountInput(principal, { principal = it })
-            Row { Column(Modifier.weight(1f)) { FieldLabel("Interest"); AmountInput(interest, { interest = it }, helper = "Total, 0 if none") }
-                Column(Modifier.weight(1f)) { FieldLabel("Fees"); AmountInput(fees, { fees = it }, helper = "Conversion fee etc.") } }
-            Row { Column(Modifier.weight(1f)) { FieldLabel("Months"); TextInput(periods, { periods = it.filter(Char::isDigit) }, "12", keyboard = KeyboardType.Number) }
-                Column(Modifier.weight(1f)) { FieldLabel("Already paid"); TextInput(prepaid, { prepaid = it.filter(Char::isDigit) }, "0", keyboard = KeyboardType.Number, helper = "Before using this app") } }
-            if (valid) Text("= ${Money.full((p + i + f) / n)} per month", style = LedgerTheme.type.label, color = LedgerTheme.colors.accent, modifier = Modifier.padding(horizontal = Space.gutter, vertical = Space.s))
-            FieldLabel("First payment date"); DateField(first) { first = it }
-            FieldLabel("Charged to"); AccountChoice(accounts, account) { account = it }
-            FieldLabel("Icon"); IconChoice(icon, hue(color)) { icon = it }
+            FieldLabel(tr("What did you buy?")); TextInput(name, { name = it }, "MacBook, iPhone, xe máy…")
+            FieldLabel(tr("Original amount")); AmountInput(principal, { principal = it })
+            Row { Column(Modifier.weight(1f)) { FieldLabel(tr("Interest")); AmountInput(interest, { interest = it }, helper = tr("Total, 0 if none")) }
+                Column(Modifier.weight(1f)) { FieldLabel(tr("Fees")); AmountInput(fees, { fees = it }, helper = tr("Conversion fee etc.")) } }
+            Row { Column(Modifier.weight(1f)) { FieldLabel(tr("Months")); TextInput(periods, { periods = it.filter(Char::isDigit) }, "12", keyboard = KeyboardType.Number) }
+                Column(Modifier.weight(1f)) { FieldLabel(tr("Already paid")); TextInput(prepaid, { prepaid = it.filter(Char::isDigit) }, "0", keyboard = KeyboardType.Number, helper = tr("Before using this app")) } }
+            if (valid) Text(tr("= %s per month", Money.full((p + i + f) / n)), style = LedgerTheme.type.label, color = LedgerTheme.colors.text, modifier = Modifier.padding(horizontal = Space.gutter, vertical = Space.s))
+            FieldLabel(tr("First payment date")); DateField(first) { first = it }
+            FieldLabel(tr("Charged to")); AccountChoice(accounts, account) { account = it }
+            FieldLabel(tr("Icon")); IconChoice(icon, hue(color)) { icon = it }
             Spacer(Modifier.height(Space.s)); HueChoice(color) { color = it }
-            ToggleRow("Record payments automatically", autoPay, "Each payment is posted on its due date as a fixed expense") { autoPay = it }
-            Text("Each payment counts as spending when it happens; the unpaid rest is a liability in net worth. Don't also record the original purchase as an expense.",
+            ToggleRow(tr("Record payments automatically"), autoPay, tr("Each payment is posted on its due date as a fixed expense")) { autoPay = it }
+            Text(tr("Each payment counts as spending when it happens; the unpaid rest is a liability in net worth. Don't also record the original purchase as an expense."),
                 style = LedgerTheme.type.caption, color = LedgerTheme.colors.textMuted, modifier = Modifier.padding(horizontal = Space.gutter, vertical = Space.s))
-            FormFooter("Save", valid, onSave = {
+            FormFooter(tr("Save"), valid, onSave = {
                 vm.saveInstallment(Installment(
                     id = existing?.id ?: 0, name = name.trim(), principal = p!!, interest = i!!, fees = f!!, periods = n!!, firstDue = first.toEpochDay(),
                     accountId = account!!, categoryId = existing?.categoryId ?: Seeds.INSTALLMENTS, prepaidPeriods = pre, autoPay = autoPay,
                     status = existing?.status ?: InstallmentStatus.ACTIVE, icon = icon, colorIndex = color, note = existing?.note ?: "",
                 ))
                 nav.pop()
-            }, destructive = if (existing != null) "Delete plan" else null, onDestructive = existing?.let { e -> { vm.deleteInstallment(e); nav.pop(); nav.pop() } })
+            }, destructive = if (existing != null) tr("Delete plan") else null, onDestructive = existing?.let { e -> { vm.deleteInstallment(e); nav.pop(); nav.pop() } })
         }
     }
+}
+
+fun cadenceLabel(c: Cadence): String = when (c) {
+    Cadence.WEEKLY -> tr("Weekly"); Cadence.MONTHLY -> tr("Monthly"); Cadence.QUARTERLY -> tr("Quarterly"); Cadence.YEARLY -> tr("Yearly")
+}
+
+fun kindLabel(k: RecurringKind): String = when (k) {
+    RecurringKind.SUBSCRIPTION -> tr("Subscription"); RecurringKind.BILL -> tr("Bill"); RecurringKind.INCOME -> tr("Income"); RecurringKind.TRANSFER -> tr("Transfer")
 }

@@ -1,5 +1,6 @@
 package dev.personal.ledger.backup
 
+import dev.personal.ledger.i18n.tr
 import dev.personal.ledger.data.LedgerData
 import dev.personal.ledger.data.Settings
 import dev.personal.ledger.domain.Fmt
@@ -24,8 +25,8 @@ object Backup {
 
     fun decode(text: String): BackupFile {
         val file = json.decodeFromString(BackupFile.serializer(), text)
-        require(file.format == "ledger-backup") { "This file isn't a Ledger backup." }
-        require(file.version <= 1) { "This backup was made by a newer version of the app." }
+        require(file.format == "ledger-backup") { tr("This file isn't a Ledger backup.") }
+        require(file.version <= 1) { tr("This backup was made by a newer version of the app.") }
         return file
     }
 

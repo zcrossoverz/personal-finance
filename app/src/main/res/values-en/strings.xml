@@ -1,0 +1,5 @@
+<resources>
+    <string name="shortcut_add">Add expense</string>
+    <string name="shortcut_command">Quick command</string>
+    <string name="shortcut_plan">Upcoming</string>
+</resources>

@@ -388,7 +388,7 @@ fun MoneyFlowChart(sources: List<FlowNode>, targets: List<FlowNode>, modifier: M
                     moveTo(x0, y0); cubicTo(mid, y0, mid, y1, x1, y1)
                     lineTo(x1, y1 + h); cubicTo(mid, y1 + h, mid, y0 + h, x0, y0 + h); close()
                 }
-                drawPath(path, t.color.copy(alpha = 0.22f * reveal.value))
+                drawPath(path, t.color.copy(alpha = (if (c.isDark) 0.16f else 0.10f) * reveal.value))
                 srcCursor[si] += h; dstCursor[ti] += h
             }
         }
@@ -397,7 +397,7 @@ fun MoneyFlowChart(sources: List<FlowNode>, targets: List<FlowNode>, modifier: M
             drawRoundRect(targets[i].color, Offset(rightX, top), Size(nodeW, h), CornerRadius(3.dp.toPx()))
             val cy = top + h / 2
             val name = tm.measure(targets[i].label, nameStyle)
-            val value = tm.measure("${Money.compact(targets[i].amount)} · ${targets[i].amount * 100 / total}%", valStyle)
+            val value = tm.measure(Money.compact(targets[i].amount) + " · " + (targets[i].amount * 100 / total) + "%", valStyle)
             val tx = rightX + nodeW + 10.dp.toPx()
             drawText(name, topLeft = Offset(tx, cy - name.size.height))
             drawText(value, topLeft = Offset(tx, cy))

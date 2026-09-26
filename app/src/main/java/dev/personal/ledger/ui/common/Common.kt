@@ -1,6 +1,7 @@
 package dev.personal.ledger.ui.common
 
 import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.Orientation
@@ -15,7 +16,6 @@ import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
@@ -29,12 +29,12 @@ import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.ArrowBack
+import androidx.compose.material.icons.automirrored.rounded.KeyboardArrowRight
 import androidx.compose.material.icons.rounded.ContentCopy
 import androidx.compose.material.icons.rounded.DeleteOutline
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
@@ -51,13 +51,17 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import dev.personal.ledger.data.AccountType
 import dev.personal.ledger.data.LedgerData
 import dev.personal.ledger.data.TxType
 import dev.personal.ledger.data.Txn
 import dev.personal.ledger.domain.Certainty
 import dev.personal.ledger.domain.Fmt
+import dev.personal.ledger.domain.Money
 import dev.personal.ledger.domain.Obligation
 import dev.personal.ledger.domain.toLocalDate
+import dev.personal.ledger.i18n.tr
 import dev.personal.ledger.ui.components.Amount
 import dev.personal.ledger.ui.components.AmountFormat
 import dev.personal.ledger.ui.components.Haptics
@@ -68,6 +72,7 @@ import dev.personal.ledger.ui.components.Tone
 import dev.personal.ledger.ui.components.hue
 import dev.personal.ledger.ui.theme.LedgerTheme
 import dev.personal.ledger.ui.theme.Motion
+import dev.personal.ledger.ui.theme.Shapes
 import dev.personal.ledger.ui.theme.Space
 import kotlinx.coroutines.launch
 import java.time.LocalDate
@@ -87,19 +92,29 @@ fun Screen(
 ) {
     val c = LedgerTheme.colors
     Column(modifier.fillMaxSize().background(c.bg)) {
-        Row(Modifier.fillMaxWidth().statusBarsPadding().heightIn(min = 56.dp).padding(horizontal = 4.dp), verticalAlignment = Alignment.CenterVertically) {
-            if (onBack != null) {
-                Box(Modifier.size(48.dp).clip(CircleShape).clickable(role = Role.Button, onClick = onBack).semantics { contentDescription = "Back" }, contentAlignment = Alignment.Center) {
-                    Icon(Icons.AutoMirrored.Rounded.ArrowBack, null, tint = c.text)
-                }
-            } else Spacer(Modifier.width(Space.l))
+        Row(Modifier.fillMaxWidth().statusBarsPadding().heightIn(min = 60.dp).padding(horizontal = 4.dp), verticalAlignment = Alignment.CenterVertically) {
+            if (onBack != null) IconAction(Icons.AutoMirrored.Rounded.ArrowBack, tr("Back"), onClick = onBack)
+            else Spacer(Modifier.width(Space.l))
             Column(Modifier.weight(1f).padding(start = 4.dp)) {
-                Text(title, style = LedgerTheme.type.title, color = c.text, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                Text(title, style = LedgerTheme.type.headline.copy(fontSize = 19.sp), color = c.text, maxLines = 1, overflow = TextOverflow.Ellipsis)
                 if (subtitle != null) Text(subtitle, style = LedgerTheme.type.caption, color = c.textMuted, maxLines = 1)
             }
             actions()
         }
         LazyColumn(Modifier.fillMaxSize(), state = state, contentPadding = PaddingValues(bottom = 120.dp), content = content)
+    }
+}
+
+/** Top-level tab title: large, left-aligned, with optional actions on the right. */
+@Composable
+fun TabTitle(title: String, subtitle: String? = null, actions: @Composable RowScope.() -> Unit = {}) {
+    val c = LedgerTheme.colors
+    Row(Modifier.fillMaxWidth().statusBarsPadding().padding(start = Space.gutter, end = 6.dp, top = Space.l, bottom = Space.s), verticalAlignment = Alignment.CenterVertically) {
+        Column(Modifier.weight(1f)) {
+            Text(title, style = LedgerTheme.type.title, color = c.text)
+            if (subtitle != null) Text(subtitle, style = LedgerTheme.type.caption.copy(fontSize = 13.sp), color = c.textMuted)
+        }
+        actions()
     }
 }
 
@@ -121,25 +136,26 @@ fun txVisual(t: Txn, data: LedgerData): TxVisual {
     return when (t.type) {
         TxType.TRANSFER -> {
             val to = data.accountById[t.toAccountId]
-            val isCardPayment = to?.type == dev.personal.ledger.data.AccountType.CREDIT_CARD
+            val isCardPayment = to?.type == AccountType.CREDIT_CARD
             TxVisual(LedgerIcons.of(if (isCardPayment) "credit_card" else "transfer"), null,
-                t.note.ifBlank { if (isCardPayment) "Card payment" else "Transfer" }, "$acc → ${to?.name ?: "?"} · $time", if (isCardPayment) "Card payment" else "Transfer")
+                t.note.ifBlank { if (isCardPayment) tr("Card payment") else tr("Transfer") }, "$acc → ${to?.name ?: "?"} · $time",
+                if (isCardPayment) tr("Card payment") else tr("Transfer"))
         }
         TxType.REFUND, TxType.REIMBURSEMENT -> TxVisual(LedgerIcons.of("refund"), cat?.colorIndex,
-            t.note.ifBlank { cat?.name ?: "Refund" }, "${cat?.name ?: ""} · $acc · $time".trimStart(' ', '·'),
-            if (t.type == TxType.REFUND) "Refund" else "Paid back")
-        TxType.ADJUSTMENT -> TxVisual(LedgerIcons.of("more"), null, "Balance adjustment", "$acc · $time", null)
+            t.note.ifBlank { cat?.name ?: tr("Refund") }, listOfNotNull(cat?.name, acc, time).joinToString(" · "),
+            if (t.type == TxType.REFUND) tr("Refund") else tr("Paid back"))
+        TxType.ADJUSTMENT -> TxVisual(LedgerIcons.of("more"), null, tr("Balance adjustment"), "$acc · $time", null)
         else -> {
             val preset = data.presetById[t.presetId]
             val title = when {
-                splits != null -> t.note.ifBlank { "Split · ${splits.size} categories" }
+                splits != null -> t.note.ifBlank { tr("Split · %d categories", splits.size) }
                 t.note.isNotBlank() -> t.note
-                else -> cat?.name ?: preset?.label ?: "Expense"
+                else -> cat?.name ?: preset?.label ?: tr("Expense")
             }
             val catLabel = if (splits != null) splits.joinToString(" + ") { data.categoryById[it.categoryId]?.name ?: "?" } else cat?.name ?: ""
             val sub = listOf(if (t.note.isNotBlank() || splits != null) catLabel else "", acc, time).filter { it.isNotBlank() }.joinToString(" · ")
             TxVisual(LedgerIcons.of(cat?.icon ?: preset?.icon), cat?.colorIndex ?: preset?.colorIndex, title, sub,
-                if (t.recurringId != null) "Scheduled" else if (t.installmentId != null) "Installment" else null)
+                if (t.recurringId != null) tr("Scheduled") else if (t.installmentId != null) tr("Installment") else null)
         }
     }
 }
@@ -170,13 +186,13 @@ fun TxRow(t: Txn, data: LedgerData, modifier: Modifier = Modifier, showDate: Boo
         }
         Spacer(Modifier.width(Space.s))
         Column(horizontalAlignment = Alignment.End) {
-            val signed = txSigned(t)
             val color = when (t.type) {
                 TxType.INCOME, TxType.REFUND, TxType.REIMBURSEMENT -> c.positive
                 TxType.TRANSFER -> c.textMuted
                 else -> c.text
             }
-            Amount(if (t.type == TxType.TRANSFER) t.amount else signed, color = color, format = AmountFormat.NUMBER, sign = t.type != TxType.TRANSFER && t.type != TxType.EXPENSE)
+            Amount(if (t.type == TxType.TRANSFER) t.amount else txSigned(t), color = color, format = AmountFormat.NUMBER,
+                sign = t.type != TxType.TRANSFER && t.type != TxType.EXPENSE)
             if (v.tag != null) Text(v.tag, style = LedgerTheme.type.caption, color = c.textFaint)
         }
     }
@@ -197,16 +213,16 @@ fun SwipeRow(onDelete: () -> Unit, onDuplicate: () -> Unit, content: @Composable
     Box(Modifier.fillMaxWidth()) {
         val x = offset.value
         Row(
-            Modifier.matchParentSize().background(if (x < 0) c.negativeSoft else if (x > 0) c.accentSoft else Color.Transparent).padding(horizontal = Space.xxl),
+            Modifier.matchParentSize().background(if (x < 0) c.negativeSoft else if (x > 0) c.surfaceAlt else Color.Transparent).padding(horizontal = Space.xxl),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = if (x < 0) Arrangement.End else Arrangement.Start,
         ) {
             val active = abs(x) > threshold
             if (x > 0) {
-                Icon(Icons.Rounded.ContentCopy, null, tint = c.accent, modifier = Modifier.graphicsLayer { scaleX = if (active) 1.15f else 0.9f; scaleY = scaleX })
-                Spacer(Modifier.width(8.dp)); Text("Duplicate", style = LedgerTheme.type.label, color = c.accent)
+                Icon(Icons.Rounded.ContentCopy, null, tint = c.text, modifier = Modifier.graphicsLayer { scaleX = if (active) 1.15f else 0.9f; scaleY = scaleX })
+                Spacer(Modifier.width(8.dp)); Text(tr("Duplicate"), style = LedgerTheme.type.label, color = c.text)
             } else if (x < 0) {
-                Text("Delete", style = LedgerTheme.type.label, color = c.negative); Spacer(Modifier.width(8.dp))
+                Text(tr("Delete"), style = LedgerTheme.type.label, color = c.negative); Spacer(Modifier.width(8.dp))
                 Icon(Icons.Rounded.DeleteOutline, null, tint = c.negative, modifier = Modifier.graphicsLayer { scaleX = if (active) 1.15f else 0.9f; scaleY = scaleX })
             }
         }
@@ -223,7 +239,7 @@ fun SwipeRow(onDelete: () -> Unit, onDuplicate: () -> Unit, content: @Composable
                 onDragStopped = {
                     val v = offset.value
                     when {
-                        v < -threshold -> { offset.animateTo(-2000f, androidx.compose.animation.core.tween(Motion.MICRO)); onDelete(); offset.snapTo(0f) }
+                        v < -threshold -> { offset.animateTo(-2000f, tween(Motion.MICRO)); onDelete(); offset.snapTo(0f) }
                         v > threshold -> { onDuplicate(); offset.animateTo(0f, Motion.snappy()) }
                         else -> offset.animateTo(0f, Motion.snappy())
                     }
@@ -234,18 +250,18 @@ fun SwipeRow(onDelete: () -> Unit, onDuplicate: () -> Unit, content: @Composable
     }
 }
 
-/** Day badge used in timelines: big day number with weekday underneath. */
+/** Day marker used in timelines: the date number with the weekday underneath; today and overdue stand out. */
 @Composable
 fun DateBadge(date: LocalDate, today: LocalDate, overdue: Boolean = false) {
     val c = LedgerTheme.colors
     val isToday = date == today
     Column(
-        Modifier.width(44.dp).clip(dev.personal.ledger.ui.theme.Shapes.well)
-            .background(when { overdue -> c.negativeSoft; isToday -> c.accentSoft; else -> c.surfaceAlt }).padding(vertical = 5.dp),
+        Modifier.width(44.dp).clip(Shapes.well)
+            .background(when { overdue -> c.negativeSoft; isToday -> c.accentSoft; else -> Color.Transparent }).padding(vertical = 5.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
-        Text(date.dayOfMonth.toString(), style = LedgerTheme.type.headline, color = if (overdue) c.negative else if (isToday) c.accent else c.text)
-        Text(Fmt.weekday(date).uppercase(), style = LedgerTheme.type.caption, color = if (overdue) c.negative else c.textMuted)
+        Text(date.dayOfMonth.toString(), style = LedgerTheme.type.headline, color = if (overdue) c.negative else c.text)
+        Text(Fmt.weekday(date), style = LedgerTheme.type.caption, color = if (overdue) c.negative else c.textMuted)
     }
 }
 
@@ -254,7 +270,7 @@ fun DateBadge(date: LocalDate, today: LocalDate, overdue: Boolean = false) {
 fun ObligationRow(o: Obligation, today: LocalDate, onClick: () -> Unit, modifier: Modifier = Modifier) {
     val c = LedgerTheme.colors
     Row(
-        modifier.fillMaxWidth().clickable(onClick = onClick).heightIn(min = 64.dp).padding(horizontal = Space.gutter, vertical = 8.dp),
+        modifier.fillMaxWidth().clickable(onClick = onClick).heightIn(min = 64.dp).padding(start = Space.m, end = Space.gutter, top = 8.dp, bottom = 8.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         DateBadge(o.date, today, o.overdue)
@@ -265,21 +281,23 @@ fun ObligationRow(o: Obligation, today: LocalDate, onClick: () -> Unit, modifier
                 Spacer(Modifier.width(6.dp))
                 Text(o.title, style = LedgerTheme.type.bodyStrong, color = c.text, maxLines = 1, overflow = TextOverflow.Ellipsis)
             }
-            val due = if (o.overdue) "Overdue · ${Fmt.dueIn(o.date, today)}" else o.subtitle.ifBlank { Fmt.dueIn(o.date, today) }
+            val due = if (o.overdue) tr("Overdue · %s", Fmt.dueIn(o.date, today)) else o.subtitle.ifBlank { Fmt.dueIn(o.date, today) }
             Text(due, style = LedgerTheme.type.caption, color = if (o.overdue) c.negative else c.textMuted, maxLines = 1, overflow = TextOverflow.Ellipsis)
         }
         Spacer(Modifier.width(Space.s))
         Column(horizontalAlignment = Alignment.End) {
             if (o.variable && o.actionable) {
-                Text("≈ " + dev.personal.ledger.domain.Money.compact(o.amount), style = LedgerTheme.type.amount, color = c.textMuted)
-                Tag("Enter amount", Tone.ACCENT)
+                Text("≈ " + Money.compact(o.amount), style = LedgerTheme.type.amount, color = c.textMuted)
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(tr("Enter amount"), style = LedgerTheme.type.label, color = c.text)
+                    Icon(Icons.AutoMirrored.Rounded.KeyboardArrowRight, null, tint = c.text, modifier = Modifier.size(16.dp))
+                }
             } else {
                 Amount(if (o.isInflow) o.amount else -o.amount, color = if (o.isInflow) c.positive else c.text, sign = o.isInflow,
-                    modifier = Modifier.graphicsLayer { alpha = if (o.certainty == Certainty.ESTIMATED) 0.75f else 1f })
-                when (o.certainty) {
-                    Certainty.ESTIMATED -> Tag("Estimate", Tone.CAUTION, dashed = true)
-                    Certainty.CONFIRMED -> if (o.cashDelta == 0L && !o.isInflow) Text("on card", style = LedgerTheme.type.caption, color = c.textFaint)
-                    Certainty.EXPECTED -> if (o.cashDelta == 0L && !o.isInflow) Text("on card", style = LedgerTheme.type.caption, color = c.textFaint)
+                    modifier = Modifier.graphicsLayer { alpha = if (o.certainty == Certainty.ESTIMATED) 0.7f else 1f })
+                when {
+                    o.certainty == Certainty.ESTIMATED -> Tag(tr("Estimate"), Tone.CAUTION, dashed = true)
+                    o.cashDelta == 0L && !o.isInflow -> Text(tr("on card"), style = LedgerTheme.type.caption, color = c.textFaint)
                 }
             }
         }

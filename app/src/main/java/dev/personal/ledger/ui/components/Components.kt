@@ -3,11 +3,16 @@ package dev.personal.ledger.ui.components
 import android.os.Build
 import android.view.HapticFeedbackConstants
 import android.view.View
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.SizeTransform
 import androidx.compose.animation.animateColorAsState
-import androidx.compose.animation.core.Animatable
-import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutVertically
+import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -30,26 +35,32 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.rounded.KeyboardArrowRight
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
+import androidx.compose.material3.ripple
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Shape
+import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.vector.ImageVector
-import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.AnnotatedString
+import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.buildAnnotatedString
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
@@ -82,12 +93,12 @@ fun formatAmount(v: Long, format: AmountFormat, sign: Boolean = false, hidden: B
 
 /** Full amounts render the currency symbol smaller and muted so the digits stay the hero. */
 @Composable
-private fun styled(text: String, format: AmountFormat, style: TextStyle): androidx.compose.ui.text.AnnotatedString {
-    val muted = LedgerTheme.colors.textMuted
-    if (format != AmountFormat.FULL || !text.endsWith(Money.symbol)) return androidx.compose.ui.text.AnnotatedString(text)
-    return androidx.compose.ui.text.buildAnnotatedString {
+private fun styled(text: String, format: AmountFormat, style: TextStyle): AnnotatedString {
+    val muted = LedgerTheme.colors.textFaint
+    if (format != AmountFormat.FULL || !text.endsWith(Money.symbol)) return AnnotatedString(text)
+    return buildAnnotatedString {
         append(text.removeSuffix(Money.symbol).trimEnd())
-        pushStyle(androidx.compose.ui.text.SpanStyle(fontSize = style.fontSize * 0.55f, color = muted, fontWeight = androidx.compose.ui.text.font.FontWeight.Medium))
+        pushStyle(SpanStyle(fontSize = style.fontSize * 0.5f, color = muted, fontWeight = FontWeight.Medium))
         append(" " + Money.symbol)
         pop()
     }
@@ -105,7 +116,10 @@ fun Amount(
     Text(styled(formatAmount(value, format, sign, LocalHideAmounts.current), format, style), modifier, color = color, style = style, maxLines = 1)
 }
 
-/** Rolls smoothly from the previous value to the new one (totals after a save). Never blocks input. */
+/**
+ * A changing total slides in the direction of the change (up when it grows, down when it shrinks).
+ * Cheaper and calmer than a rolling counter, and it never makes proportional digits jitter.
+ */
 @Composable
 fun AnimatedAmount(
     value: Long,
@@ -115,20 +129,18 @@ fun AnimatedAmount(
     format: AmountFormat = AmountFormat.FULL,
     sign: Boolean = false,
 ) {
-    var from by remember { mutableLongStateOf(value) }
-    var to by remember { mutableLongStateOf(value) }
-    val t = remember { Animatable(1f) }
-    LaunchedEffect(value) {
-        if (value != to) {
-            from = (from + (to - from) * t.value).toLong()
-            to = value
-            t.snapTo(0f)
-            t.animateTo(1f, tween(420, easing = FastOutSlowInEasing))
-        }
+    val hidden = LocalHideAmounts.current
+    AnimatedContent(
+        value, modifier.semantics { contentDescription = Money.full(value) },
+        transitionSpec = {
+            val up = targetState > initialState
+            (slideInVertically(tween(Motion.STANDARD, easing = Motion.emphasized)) { if (up) it / 2 else -it / 2 } + fadeIn(tween(Motion.MICRO))) togetherWith
+                (slideOutVertically(tween(Motion.MICRO)) { if (up) -it / 2 else it / 2 } + fadeOut(tween(Motion.FAST))) using SizeTransform(clip = false)
+        },
+        label = "amount",
+    ) { v ->
+        Text(styled(formatAmount(v, format, sign, hidden), format, style), color = color, style = style, maxLines = 1)
     }
-    val shown = from + ((to - from) * t.value).toLong()
-    Text(styled(formatAmount(shown, format, sign, LocalHideAmounts.current), format, style), modifier.semantics { contentDescription = Money.full(value) },
-        color = color, style = style, maxLines = 1)
 }
 
 // ---------- surfaces ----------
@@ -144,22 +156,23 @@ fun LedgerCard(
     val c = LedgerTheme.colors
     val interaction = remember { MutableInteractionSource() }
     val pressed by interaction.collectIsPressedAsState()
-    val scale by animateFloatAsState(if (pressed && onClick != null) 0.985f else 1f, Motion.snappy(), label = "card")
+    val scale by animateFloatAsState(if (pressed && onClick != null) 0.99f else 1f, Motion.snappy(), label = "card")
     Column(
         modifier
             .scale(scale)
             .clip(Shapes.card)
             .background(color)
-            .then(if (!c.isDark) Modifier.border(BorderStroke(1.dp, c.hairline), Shapes.card) else Modifier)
-            .then(if (onClick != null) Modifier.clickable(interaction, indication = androidx.compose.material3.ripple(), onClick = onClick) else Modifier)
+            .border(BorderStroke(1.dp, c.hairline), Shapes.card)
+            .then(if (onClick != null) Modifier.clickable(interaction, indication = ripple(), onClick = onClick) else Modifier)
             .padding(padding),
         content = content,
     )
 }
 
+/** Neutral well with a coloured glyph: category identity without pastel tiles everywhere. */
 @Composable
-fun IconWell(icon: ImageVector, tint: Color, modifier: Modifier = Modifier, size: Dp = 40.dp, iconSize: Dp = 22.dp, shape: androidx.compose.ui.graphics.Shape = Shapes.well, soft: Float = 0.14f) {
-    Box(modifier.size(size).clip(shape).background(tint.copy(alpha = soft)), contentAlignment = Alignment.Center) {
+fun IconWell(icon: ImageVector, tint: Color, modifier: Modifier = Modifier, size: Dp = 40.dp, iconSize: Dp = 20.dp, shape: Shape = Shapes.well, background: Color = LedgerTheme.colors.surfaceAlt) {
+    Box(modifier.size(size).clip(shape).background(background), contentAlignment = Alignment.Center) {
         Icon(icon, null, Modifier.size(iconSize), tint = tint)
     }
 }
@@ -167,16 +180,20 @@ fun IconWell(icon: ImageVector, tint: Color, modifier: Modifier = Modifier, size
 @Composable
 fun hue(index: Int): Color = LedgerTheme.colors.hues[index.mod(LedgerTheme.colors.hues.size)]
 
+/** Sentence-case section title with an optional quiet action on the right. */
 @Composable
 fun SectionHeader(title: String, modifier: Modifier = Modifier, trailing: String? = null, onTrailing: (() -> Unit)? = null) {
-    Row(modifier.fillMaxWidth().padding(horizontal = Space.gutter).heightIn(min = 40.dp), verticalAlignment = Alignment.CenterVertically) {
-        Text(title.uppercase(), style = LedgerTheme.type.overline, color = LedgerTheme.colors.textMuted, modifier = Modifier.weight(1f))
+    val c = LedgerTheme.colors
+    Row(modifier.fillMaxWidth().padding(start = Space.gutter, end = Space.m).heightIn(min = 44.dp), verticalAlignment = Alignment.CenterVertically) {
+        Text(title, style = LedgerTheme.type.section, color = c.text, modifier = Modifier.weight(1f))
         if (trailing != null) {
-            Text(
-                trailing, style = LedgerTheme.type.label, color = LedgerTheme.colors.accent,
-                modifier = Modifier.clip(Shapes.chip).then(if (onTrailing != null) Modifier.clickable(onClick = onTrailing) else Modifier)
-                    .padding(horizontal = 8.dp, vertical = 10.dp),
-            )
+            Row(
+                Modifier.clip(Shapes.chip).then(if (onTrailing != null) Modifier.clickable(onClick = onTrailing) else Modifier).padding(start = 8.dp, end = 2.dp, top = 10.dp, bottom = 10.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text(trailing, style = LedgerTheme.type.label, color = c.textMuted)
+                Icon(Icons.AutoMirrored.Rounded.KeyboardArrowRight, null, tint = c.textFaint, modifier = Modifier.size(18.dp))
+            }
         }
     }
 }
@@ -191,15 +208,16 @@ fun Chip(
     onClick: () -> Unit,
 ) {
     val c = LedgerTheme.colors
-    val bg by animateColorAsState(if (selected) c.accent else c.surfaceAlt, tween(Motion.MICRO), label = "chipbg")
+    val bg by animateColorAsState(if (selected) c.accent else c.surface, tween(Motion.MICRO), label = "chipbg")
     val fg by animateColorAsState(if (selected) c.onAccent else c.text, tween(Motion.MICRO), label = "chipfg")
     Row(
         modifier.heightIn(min = 40.dp).clip(Shapes.chip).background(bg)
+            .border(1.dp, if (selected) c.accent else c.hairline, Shapes.chip)
             .combinedClickable(onLongClick = onLongClick, role = Role.Button, onClick = onClick)
             .padding(horizontal = 14.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        if (icon != null) { Icon(icon, null, Modifier.size(18.dp), tint = fg); Spacer(Modifier.width(6.dp)) }
+        if (icon != null) { Icon(icon, null, Modifier.size(17.dp), tint = if (selected) fg else c.textMuted); Spacer(Modifier.width(7.dp)) }
         Text(text, style = LedgerTheme.type.label, color = fg, maxLines = 1)
     }
 }
@@ -207,28 +225,37 @@ fun Chip(
 enum class Tone { NEUTRAL, ACCENT, POSITIVE, NEGATIVE, CAUTION }
 
 @Composable
-fun Tag(text: String, tone: Tone = Tone.NEUTRAL, modifier: Modifier = Modifier, dashed: Boolean = false) {
-    val c = LedgerTheme.colors
-    val (bg, fg) = when (tone) {
-        Tone.NEUTRAL -> c.surfaceAlt to c.textMuted
-        Tone.ACCENT -> c.accentSoft to c.accent
-        Tone.POSITIVE -> c.positiveSoft to c.positive
-        Tone.NEGATIVE -> c.negativeSoft to c.negative
-        Tone.CAUTION -> c.cautionSoft to c.caution
-    }
-    Text(
-        text, style = LedgerTheme.type.caption, color = fg, maxLines = 1,
-        modifier = modifier.clip(RoundedCornerShape(8.dp)).background(bg)
-            .then(if (dashed) Modifier.border(1.dp, fg.copy(alpha = 0.5f), RoundedCornerShape(8.dp)) else Modifier)
-            .padding(horizontal = 7.dp, vertical = 3.dp),
-    )
+fun toneColor(tone: Tone): Color = when (tone) {
+    Tone.NEUTRAL -> LedgerTheme.colors.textMuted
+    Tone.ACCENT -> LedgerTheme.colors.text
+    Tone.POSITIVE -> LedgerTheme.colors.positive
+    Tone.NEGATIVE -> LedgerTheme.colors.negative
+    Tone.CAUTION -> LedgerTheme.colors.caution
 }
 
-/** Progress bar with an optional reference marker (e.g. expected pace, 3-month average). */
+/**
+ * A quiet status marker: a small dot and a caption, no pill. Estimates use a hollow dot — the same grammar as the
+ * dashed forecast line.
+ */
+@Composable
+fun Tag(text: String, tone: Tone = Tone.NEUTRAL, modifier: Modifier = Modifier, dashed: Boolean = false) {
+    val col = toneColor(tone)
+    Row(modifier, verticalAlignment = Alignment.CenterVertically) {
+        Box(
+            Modifier.size(6.dp).clip(CircleShape)
+                .then(if (dashed) Modifier.border(1.2.dp, col, CircleShape) else Modifier.background(col)),
+        )
+        Spacer(Modifier.width(5.dp))
+        Text(text, style = LedgerTheme.type.caption, color = if (tone == Tone.NEUTRAL) LedgerTheme.colors.textMuted else col, maxLines = 1)
+    }
+}
+
+/** Progress bar with an optional reference marker (expected pace, 3-month average). */
 @Composable
 fun Bar(fraction: Float, modifier: Modifier = Modifier, color: Color = LedgerTheme.colors.accent, track: Color = LedgerTheme.colors.surfaceAlt, height: Dp = 6.dp, marker: Float? = null) {
     val f by animateFloatAsState(fraction.coerceIn(0f, 1f), tween(Motion.EMPHASIZED, easing = Motion.emphasized), label = "bar")
     val markerColor = LedgerTheme.colors.text
+    val surface = LedgerTheme.colors.surface
     Box(modifier.fillMaxWidth().height(height + if (marker != null) 6.dp else 0.dp), contentAlignment = Alignment.CenterStart) {
         Box(Modifier.fillMaxWidth().height(height).clip(CircleShape).background(track)) {
             Box(Modifier.fillMaxWidth(f).height(height).clip(CircleShape).background(color))
@@ -236,7 +263,8 @@ fun Bar(fraction: Float, modifier: Modifier = Modifier, color: Color = LedgerThe
         if (marker != null) {
             androidx.compose.foundation.Canvas(Modifier.matchParentSize()) {
                 val x = size.width * marker.coerceIn(0f, 1f)
-                drawLine(markerColor, androidx.compose.ui.geometry.Offset(x, 0f), androidx.compose.ui.geometry.Offset(x, size.height), strokeWidth = 2.dp.toPx(), cap = androidx.compose.ui.graphics.StrokeCap.Round)
+                drawLine(surface, Offset(x, 0f), Offset(x, size.height), strokeWidth = 4.dp.toPx())
+                drawLine(markerColor, Offset(x, 0f), Offset(x, size.height), strokeWidth = 1.5.dp.toPx(), cap = StrokeCap.Round)
             }
         }
     }
@@ -251,14 +279,14 @@ fun Divider(modifier: Modifier = Modifier, inset: Dp = 0.dp) {
 fun EmptyState(icon: ImageVector, title: String, body: String, modifier: Modifier = Modifier, action: String? = null, onAction: (() -> Unit)? = null) {
     val c = LedgerTheme.colors
     Column(modifier.fillMaxWidth().padding(horizontal = Space.xxl, vertical = Space.xxl), horizontalAlignment = Alignment.CenterHorizontally) {
-        IconWell(icon, c.textMuted, size = 52.dp, iconSize = 26.dp, shape = CircleShape, soft = 0.10f)
+        Icon(icon, null, Modifier.size(28.dp), tint = c.textFaint)
         Spacer(Modifier.height(Space.m))
-        Text(title, style = LedgerTheme.type.headline, color = c.text)
+        Text(title, style = LedgerTheme.type.headline, color = c.text, textAlign = TextAlign.Center)
         Spacer(Modifier.height(4.dp))
-        Text(body, style = LedgerTheme.type.body, color = c.textMuted, textAlign = androidx.compose.ui.text.style.TextAlign.Center)
+        Text(body, style = LedgerTheme.type.body, color = c.textMuted, textAlign = TextAlign.Center)
         if (action != null && onAction != null) {
             Spacer(Modifier.height(Space.l))
-            PrimaryButton(action, onClick = onAction)
+            SecondaryButton(action, onClick = onAction)
         }
     }
 }
@@ -268,11 +296,11 @@ fun PrimaryButton(text: String, modifier: Modifier = Modifier, enabled: Boolean 
     val c = LedgerTheme.colors
     val interaction = remember { MutableInteractionSource() }
     val pressed by interaction.collectIsPressedAsState()
-    val scale by animateFloatAsState(if (pressed) 0.97f else 1f, Motion.snappy(), label = "btn")
+    val scale by animateFloatAsState(if (pressed) 0.98f else 1f, Motion.snappy(), label = "btn")
     Row(
-        modifier.scale(scale).heightIn(min = 52.dp).clip(Shapes.pill)
+        modifier.scale(scale).heightIn(min = 52.dp).clip(Shapes.button)
             .background(if (enabled) c.accent else c.surfaceAlt)
-            .clickable(interaction, androidx.compose.material3.ripple(), enabled = enabled, role = Role.Button, onClick = onClick)
+            .clickable(interaction, ripple(), enabled = enabled, role = Role.Button, onClick = onClick)
             .padding(horizontal = 22.dp),
         verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.Center,
     ) {
@@ -285,7 +313,7 @@ fun PrimaryButton(text: String, modifier: Modifier = Modifier, enabled: Boolean 
 fun SecondaryButton(text: String, modifier: Modifier = Modifier, icon: ImageVector? = null, color: Color = LedgerTheme.colors.text, onClick: () -> Unit) {
     val c = LedgerTheme.colors
     Row(
-        modifier.heightIn(min = 48.dp).clip(Shapes.pill).background(c.surfaceAlt)
+        modifier.heightIn(min = 48.dp).clip(Shapes.button).border(1.dp, c.hairline, Shapes.button).background(c.surface)
             .clickable(role = Role.Button, onClick = onClick).padding(horizontal = 18.dp),
         verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.Center,
     ) {

@@ -10,6 +10,13 @@ exists to make the financial picture clearer without making that interaction slo
 - Product, IA, interaction model and design system: [docs/PRODUCT.md](docs/PRODUCT.md)
 - Audit log (what was reviewed, found and fixed): [docs/AUDIT.md](docs/AUDIT.md)
 
+## Download
+
+Every push to `main` builds the app on GitHub Actions (tests + debug and release APKs, under the run's
+**Artifacts**). Pushing a tag like `v1.0.0` also publishes a GitHub Release with the release APK attached.
+
+The UI is Vietnamese by default (English available in Settings).
+
 ## Build & run
 
 Requirements: JDK 17+, Android SDK 36 (`local.properties` → `sdk.dir`).
@@ -26,7 +33,9 @@ Requirements: JDK 17+, Android SDK 36 (`local.properties` → `sdk.dir`).
 ./gradlew :app:assembleRelease
 ```
 
-The release build is minified (R8, ~2.6 MB) and signed with the debug key so it installs directly on your phone.
+The release build is minified (R8). It is signed with the keystore given by `LEDGER_KEYSTORE_PATH`,
+`LEDGER_KEYSTORE_PASSWORD`, `LEDGER_KEY_ALIAS`, `LEDGER_KEY_PASSWORD` if set (CI reads them from repository
+secrets, the keystore itself as `LEDGER_KEYSTORE_BASE64`); otherwise with the debug key so it still installs.
 On first launch choose **Explore with demo data** to review every screen with a realistic 7-month dataset, or
 **Get started** for the 4-step onboarding (currency → accounts → presets → optional pay day).
 

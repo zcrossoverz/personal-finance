@@ -1,5 +1,7 @@
 package dev.personal.ledger.ui.plan
 
+import dev.personal.ledger.ui.common.TabTitle
+import dev.personal.ledger.i18n.tr
 import androidx.compose.animation.animateContentSize
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -78,13 +80,17 @@ import dev.personal.ledger.ui.theme.Shapes
 import dev.personal.ledger.ui.theme.Space
 import java.time.YearMonth
 
-private enum class PlanFilter(val label: String, val kinds: Set<ObKind>) {
-    ALL("All", ObKind.entries.toSet()),
-    BILLS("Bills", setOf(ObKind.BILL)),
-    SUBS("Subscriptions", setOf(ObKind.SUBSCRIPTION)),
-    INSTALLMENTS("Installments", setOf(ObKind.INSTALLMENT)),
-    CARDS("Cards", setOf(ObKind.CARD)),
-    INCOME("Income", setOf(ObKind.INCOME)),
+private enum class PlanFilter(val kinds: Set<ObKind>) {
+    ALL(ObKind.entries.toSet()),
+    BILLS(setOf(ObKind.BILL)),
+    SUBS(setOf(ObKind.SUBSCRIPTION)),
+    INSTALLMENTS(setOf(ObKind.INSTALLMENT)),
+    CARDS(setOf(ObKind.CARD)),
+    INCOME(setOf(ObKind.INCOME));
+
+    val label: String get() = when (this) {
+        ALL -> tr("All"); BILLS -> tr("Bills"); SUBS -> tr("Subscriptions"); INSTALLMENTS -> tr("Installments"); CARDS -> tr("Cards"); INCOME -> tr("Income")
+    }
 }
 
 /** "What's coming and can I afford it?" — forecast, then the obligation timeline grouped by month. */
@@ -100,13 +106,8 @@ fun PlanScreen(d: Dashboard, vm: LedgerViewModel, nav: Nav) {
 
     LazyColumn(Modifier.fillMaxSize().background(c.bg), contentPadding = PaddingValues(bottom = 150.dp)) {
         item(key = "title") {
-            Column(Modifier.statusBarsPadding().padding(horizontal = Space.gutter, vertical = Space.m)) {
-                Text("Plan", style = LedgerTheme.type.title, color = c.text)
-                Text(
-                    "Next 30 days · ${Money.compact(next30.filter { !it.isInflow && it.cashDelta != 0L }.sumOf { it.amount })} out · ${Money.compact(next30.filter { it.isInflow }.sumOf { it.amount })} in",
-                    style = LedgerTheme.type.label, color = c.textMuted,
-                )
-            }
+            TabTitle(tr("Plan"), tr("Next 30 days · %s out · %s in",
+                Money.compact(next30.filter { !it.isInflow && it.cashDelta != 0L }.sumOf { it.amount }), Money.compact(next30.filter { it.isInflow }.sumOf { it.amount })))
         }
         item(key = "sts") { SafeStrip(d.safe) { nav.open(SheetRequest.SafeToSpend) } }
         // A forecast needs something to forecast: a balance or at least one scheduled item.
@@ -114,7 +115,7 @@ fun PlanScreen(d: Dashboard, vm: LedgerViewModel, nav: Nav) {
         item(key = "tiles") { SummaryTiles(d, nav) }
         item(key = "filters") {
             Column {
-                SectionHeader("Timeline", Modifier.padding(top = Space.m))
+                SectionHeader(tr("Timeline"), Modifier.padding(top = Space.m))
                 LazyRow(contentPadding = PaddingValues(horizontal = Space.l), horizontalArrangement = Arrangement.spacedBy(Space.s)) {
                     items(PlanFilter.entries) { f -> Chip(f.label, f == filter) { filter = f } }
                 }
@@ -122,8 +123,8 @@ fun PlanScreen(d: Dashboard, vm: LedgerViewModel, nav: Nav) {
             }
         }
         if (shown.isEmpty()) item(key = "empty") {
-            EmptyState(Icons.Rounded.EventAvailable, "Nothing scheduled", "Add bills, subscriptions or installments and they will appear here with their due dates.",
-                action = "Add a bill") { nav.push(Route.EditRecurring(null)) }
+            EmptyState(Icons.Rounded.EventAvailable, tr("Nothing scheduled"), tr("Add bills, subscriptions or installments and they will appear here with their due dates."),
+                action = tr("Add a bill")) { nav.push(Route.EditRecurring(null)) }
         }
         shown.groupBy { YearMonth.from(if (it.overdue) d.today else it.date) }.forEach { (m, list) ->
             item(key = "m-$m") { MonthHeader(m, list, m == YearMonth.from(d.today).plusMonths(1)) }
@@ -144,9 +145,9 @@ private fun MonthHeader(m: YearMonth, list: List<dev.personal.ledger.domain.Obli
         Column(Modifier.weight(1f)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text(Fmt.month(m), style = LedgerTheme.type.headline, color = c.text)
-                if (isNext) { Spacer(Modifier.width(6.dp)); Tag("Next month", Tone.ACCENT) }
+                if (isNext) { Spacer(Modifier.width(6.dp)); Tag(tr("Next month"), Tone.ACCENT) }
             }
-            if (onCard > 0) Text("+ ${Money.compact(onCard)} charged to cards (paid via card dues)", style = LedgerTheme.type.caption, color = c.textFaint)
+            if (onCard > 0) Text(tr("+ %s charged to cards (paid via card dues)", Money.compact(onCard)), style = LedgerTheme.type.caption, color = c.textFaint)
         }
         Column(horizontalAlignment = Alignment.End) {
             Amount(-out, style = LedgerTheme.type.bodyStrong)
@@ -161,14 +162,14 @@ private fun SafeStrip(s: SafeToSpendCalc.Result, onClick: () -> Unit) {
     LedgerCard(Modifier.padding(horizontal = Space.l, vertical = Space.s).fillMaxWidth(), onClick = onClick) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Column(Modifier.weight(1f)) {
-                Text("Safe to spend until ${Fmt.dayMonth(s.horizon)}", style = LedgerTheme.type.label, color = c.textMuted)
+                Text(tr("Safe to spend until %s", Fmt.dayMonth(s.horizon)), style = LedgerTheme.type.label, color = c.textMuted)
                 Row(verticalAlignment = Alignment.Bottom) {
                     Amount(s.safe, style = LedgerTheme.type.display, format = AmountFormat.COMPACT, color = if (s.safe < 0) c.negative else c.text)
-                    Text("  ${Money.compact(s.perDay)}/day", style = LedgerTheme.type.label, color = c.textMuted, modifier = Modifier.padding(bottom = 5.dp))
+                    Text("  " + tr("%s/day", Money.compact(s.perDay)), style = LedgerTheme.type.label, color = c.textMuted, modifier = Modifier.padding(bottom = 5.dp))
                 }
             }
-            Text("How?", style = LedgerTheme.type.label, color = c.accent)
-            Icon(Icons.Rounded.ChevronRight, null, tint = c.accent, modifier = Modifier.size(18.dp))
+            Text(tr("How?"), style = LedgerTheme.type.label, color = c.textMuted)
+            Icon(Icons.Rounded.ChevronRight, null, tint = c.textFaint, modifier = Modifier.size(18.dp))
         }
     }
 }
@@ -186,18 +187,18 @@ private fun ForecastCard(f: ForecastCalc.Result, withEstimate: Boolean) {
         val shown = p ?: lowKnown
         Row(verticalAlignment = Alignment.Top) {
             Column(Modifier.weight(1f)) {
-                Text(if (p == null) "Lowest scheduled balance · ${Fmt.dayMonth(lowKnown.date)}" else Fmt.full(p.date), style = LedgerTheme.type.label, color = c.textMuted)
+                Text(if (p == null) tr("Lowest scheduled balance · %s", Fmt.dayMonth(lowKnown.date)) else Fmt.full(p.date), style = LedgerTheme.type.label, color = c.textMuted)
                 Row(verticalAlignment = Alignment.Bottom) {
                     Amount(shown.known, style = LedgerTheme.type.headline, format = AmountFormat.FULL, color = if (shown.known < 0) c.negative else c.text)
                     if (withEstimate && f.dailyEstimate > 0) {
-                        Text("  ≈ ${Money.compact(shown.withEstimate)} with everyday spending", style = LedgerTheme.type.caption, color = c.textMuted, modifier = Modifier.padding(bottom = 2.dp))
+                        Text("  " + tr("≈ %s with everyday spending", Money.compact(shown.withEstimate)), style = LedgerTheme.type.caption, color = c.textMuted, modifier = Modifier.padding(bottom = 2.dp))
                     }
                 }
                 val ev = p?.events.orEmpty()
                 Text(
                     when {
-                        p == null -> "Next 45 days of bills, cards, installments and salary · drag to inspect"
-                        ev.isEmpty() -> "No scheduled items this day"
+                        p == null -> tr("Next 45 days of bills, cards, installments and salary · drag to inspect")
+                        ev.isEmpty() -> tr("No scheduled items this day")
                         else -> ev.joinToString(" · ") { "${it.title} ${Money.compact(it.cashDelta, sign = true)}" }
                     },
                     style = LedgerTheme.type.caption, color = c.textMuted, maxLines = 2, overflow = TextOverflow.Ellipsis,
@@ -208,10 +209,10 @@ private fun ForecastCard(f: ForecastCalc.Result, withEstimate: Boolean) {
         ForecastChart(points, sel, { sel = it }, showEstimate = withEstimate && f.dailyEstimate > 0)
         Spacer(Modifier.height(Space.s))
         Row(verticalAlignment = Alignment.CenterVertically) {
-            LegendLine(c.accent, dashed = false); Text(" Scheduled", style = LedgerTheme.type.caption, color = c.textMuted)
+            LegendLine(c.accent, dashed = false); Text(" " + tr("Scheduled"), style = LedgerTheme.type.caption, color = c.textMuted)
             if (withEstimate && f.dailyEstimate > 0) {
                 Spacer(Modifier.width(Space.m))
-                LegendLine(c.accent.copy(alpha = 0.55f), dashed = true); Text(" + everyday ≈ ${Money.compact(f.dailyEstimate)}/day", style = LedgerTheme.type.caption, color = c.textMuted)
+                LegendLine(c.accent.copy(alpha = 0.55f), dashed = true); Text(" " + tr("+ everyday ≈ %s/day", Money.compact(f.dailyEstimate)), style = LedgerTheme.type.caption, color = c.textMuted)
             }
         }
         val low = f.lowest
@@ -219,7 +220,7 @@ private fun ForecastCard(f: ForecastCalc.Result, withEstimate: Boolean) {
             Spacer(Modifier.height(6.dp))
             // Red only if scheduled items alone go below zero; an estimate dipping is a caution, not a fact.
             val tone = when { f.points.any { it.known < 0 } -> c.negative; low.withEstimate < 0 -> c.caution; else -> c.textMuted }
-            Text("Lowest point ≈ ${Money.compact(low.withEstimate)} on ${Fmt.dayMonth(low.date)}${if (low.withEstimate < 0) " — below zero" else ""}. Estimate, not a fact.",
+            Text(if (low.withEstimate < 0) tr("Lowest point ≈ %s on %s — below zero. Estimate, not a fact.", Money.compact(low.withEstimate), Fmt.dayMonth(low.date)) else tr("Lowest point ≈ %s on %s. Estimate, not a fact.", Money.compact(low.withEstimate), Fmt.dayMonth(low.date)),
                 style = LedgerTheme.type.caption, color = tone)
         }
     }
@@ -240,23 +241,20 @@ private fun SummaryTiles(d: Dashboard, nav: Nav) {
     val plans = d.data.installments.filter { it.status == InstallmentStatus.ACTIVE }
     val planProgress = plans.map { Installments.progress(d.data, it) }
     Row(Modifier.padding(horizontal = Space.l, vertical = Space.s), horizontalArrangement = Arrangement.spacedBy(Space.s)) {
-        Tile("Subscriptions", "${subs.size} active", subs.sumOf { it.cadence.monthly(it.amount) }, "/mo", Modifier.weight(1f)) { nav.push(Route.RecurringList(RecurringKind.SUBSCRIPTION)) }
-        Tile("Installments", "${Money.compact(planProgress.sumOf { it.remaining })} left", planProgress.sumOf { if (it.nextIndex != null) it.nextAmount else 0 }, "/mo", Modifier.weight(1f)) { nav.push(Route.InstallmentList) }
-        Tile("Bills", "${bills.size} recurring", bills.sumOf { it.cadence.monthly(it.amount) }, "/mo", Modifier.weight(1f)) { nav.push(Route.RecurringList(RecurringKind.BILL)) }
+        Tile(tr("Subscriptions"), tr("per month · %d active", subs.size), subs.sumOf { it.cadence.monthly(it.amount) }, Modifier.weight(1f)) { nav.push(Route.RecurringList(RecurringKind.SUBSCRIPTION)) }
+        Tile(tr("Installments"), tr("per month · %s left", Money.compact(planProgress.sumOf { it.remaining })), planProgress.sumOf { if (it.nextIndex != null) it.nextAmount else 0 }, Modifier.weight(1f)) { nav.push(Route.InstallmentList) }
+        Tile(tr("Bills"), tr("per month · %d recurring", bills.size), bills.sumOf { it.cadence.monthly(it.amount) }, Modifier.weight(1f)) { nav.push(Route.RecurringList(RecurringKind.BILL)) }
     }
 }
 
 @Composable
-private fun Tile(title: String, sub: String, amount: Long, suffix: String, modifier: Modifier, onClick: () -> Unit) {
+private fun Tile(title: String, sub: String, amount: Long, modifier: Modifier, onClick: () -> Unit) {
     val c = LedgerTheme.colors
     LedgerCard(modifier, onClick = onClick, padding = PaddingValues(14.dp)) {
         Text(title, style = LedgerTheme.type.label, color = c.textMuted, maxLines = 1)
         Spacer(Modifier.height(6.dp))
-        Row(verticalAlignment = Alignment.Bottom) {
-            Amount(amount, style = LedgerTheme.type.headline)
-            Text(suffix, style = LedgerTheme.type.caption, color = c.textMuted, modifier = Modifier.padding(bottom = 2.dp))
-        }
-        Text(sub, style = LedgerTheme.type.caption, color = c.textMuted, maxLines = 1)
+        Amount(amount, style = LedgerTheme.type.headline)
+        Text(sub, style = LedgerTheme.type.caption, color = c.textMuted, maxLines = 2)
     }
 }
 
@@ -267,35 +265,35 @@ fun ColumnScope.SafeToSpendSheet(d: Dashboard, nav: Nav) {
     val s = d.safe
     var showItems by remember { mutableStateOf(false) }
     Column(Modifier.verticalScroll(rememberScrollState()).padding(horizontal = Space.gutter).padding(bottom = Space.l).animateContentSize(Motion.gentle())) {
-        Text("Safe to spend", style = LedgerTheme.type.headline, color = c.text)
-        Text("Until ${if (s.salary != null) "${s.salary.name} on" else ""} ${Fmt.full(s.horizon)}", style = LedgerTheme.type.caption, color = c.textMuted)
+        Text(tr("Safe to spend"), style = LedgerTheme.type.headline, color = c.text)
+        Text(if (s.salary != null) tr("Until %s on %s", s.salary.name, Fmt.full(s.horizon)) else tr("Until %s", Fmt.full(s.horizon)), style = LedgerTheme.type.caption, color = c.textMuted)
         Spacer(Modifier.height(Space.l))
         val everyday = d.data.accounts.filter { it.spendable && dev.personal.ledger.domain.Ledger.isEveryday(it) }
-        FormulaRow("Spendable cash", s.spendable, everyday.joinToString(" · ") { "${it.name} ${Money.compact(d.balances[it.id] ?: 0)}" }, null)
-        FormulaRow("Card dues", -s.cardDues, s.items.filter { it.kind == ObKind.CARD }.joinToString(" · ") { "${it.title} ${Fmt.dayMonth(it.date)}${if (it.certainty == Certainty.ESTIMATED) " (est.)" else ""}" }.ifBlank { "None before pay day" }, "−")
-        FormulaRow("Bills, subscriptions, installments", -s.obligations, "${s.items.count { it.kind != ObKind.CARD }} items before pay day", "−") { showItems = !showItems }
+        FormulaRow(tr("Spendable cash"), s.spendable, everyday.joinToString(" · ") { "${it.name} ${Money.compact(d.balances[it.id] ?: 0)}" }, null)
+        FormulaRow(tr("Card dues"), -s.cardDues, s.items.filter { it.kind == ObKind.CARD }.joinToString(" · ") { "${it.title} ${Fmt.dayMonth(it.date)}" + if (it.certainty == Certainty.ESTIMATED) " " + tr("(est.)") else "" }.ifBlank { tr("None before pay day") }, "−")
+        FormulaRow(tr("Bills, subscriptions, installments"), -s.obligations, tr("%d items before pay day", s.items.count { it.kind != ObKind.CARD }), "−") { showItems = !showItems }
         if (showItems) {
             s.items.filter { it.kind != ObKind.CARD }.forEach { o ->
                 Row(Modifier.fillMaxWidth().padding(start = Space.l, top = 4.dp, bottom = 4.dp)) {
-                    Text("${Fmt.dayMonth(o.date)}  ${o.title}${if (o.certainty == Certainty.ESTIMATED) " (est.)" else ""}", style = LedgerTheme.type.caption, color = c.textMuted, modifier = Modifier.weight(1f))
+                    Text("${Fmt.dayMonth(o.date)}  ${o.title}" + if (o.certainty == Certainty.ESTIMATED) " " + tr("(est.)") else "", style = LedgerTheme.type.caption, color = c.textMuted, modifier = Modifier.weight(1f))
                     Amount(-o.amount, style = LedgerTheme.type.caption, color = c.textMuted)
                 }
             }
         }
-        FormulaRow("Protected savings + reserve", -s.protected, "Set in Settings", "−")
+        FormulaRow(tr("Protected savings + reserve"), -s.protected, tr("Set in Settings"), "−")
         Spacer(Modifier.height(Space.s)); Divider(); Spacer(Modifier.height(Space.s))
         Row(verticalAlignment = Alignment.Bottom) {
-            Text("= Safe to spend", style = LedgerTheme.type.bodyStrong, color = c.text, modifier = Modifier.weight(1f))
+            Text(tr("= Safe to spend"), style = LedgerTheme.type.bodyStrong, color = c.text, modifier = Modifier.weight(1f))
             Amount(s.safe, style = LedgerTheme.type.display, format = AmountFormat.COMPACT, color = if (s.safe < 0) c.negative else c.text)
         }
-        Text("÷ ${s.daysLeft} days = ${Money.full(s.perDay)} per day", style = LedgerTheme.type.label, color = c.textMuted, modifier = Modifier.align(Alignment.End))
+        Text(tr("÷ %d days = %s per day", s.daysLeft, Money.full(s.perDay)), style = LedgerTheme.type.label, color = c.textMuted, modifier = Modifier.align(Alignment.End))
         Spacer(Modifier.height(Space.l))
-        Text("ASSUMPTIONS", style = LedgerTheme.type.overline, color = c.textMuted)
+        Text(tr("Assumptions"), style = LedgerTheme.type.section, color = c.text)
         Spacer(Modifier.height(6.dp))
         val base = listOf(
-            "Income arriving before pay day is not counted.",
-            "Money in savings accounts and on cards is excluded.",
-            "Purchases on cards are counted when the statement is due.",
+            tr("Income arriving before pay day is not counted."),
+            tr("Money in savings accounts and on cards is excluded."),
+            tr("Purchases on cards are counted when the statement is due."),
         )
         (s.notes.map { it to true } + base.map { it to false }).forEach { (n, warn) ->
             Row(Modifier.padding(vertical = 3.dp)) {
@@ -305,7 +303,7 @@ fun ColumnScope.SafeToSpendSheet(d: Dashboard, nav: Nav) {
             }
         }
         Spacer(Modifier.height(Space.l))
-        PrimaryButton("Adjust assumptions", Modifier.fillMaxWidth(), icon = Icons.Rounded.Tune) { nav.closeSheet(); nav.push(Route.Settings) }
+        PrimaryButton(tr("Adjust assumptions"), Modifier.fillMaxWidth(), icon = Icons.Rounded.Tune) { nav.closeSheet(); nav.push(Route.Settings) }
     }
 }
 

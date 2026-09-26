@@ -1,5 +1,6 @@
 package dev.personal.ledger
 
+import dev.personal.ledger.i18n.tr
 import android.content.Intent
 import android.os.Bundle
 import android.os.SystemClock
@@ -71,11 +72,12 @@ class MainActivity : FragmentActivity() {
             // Launcher long-press shortcuts for the top presets: two taps from the home screen to the amount.
             LaunchedEffect(dash?.presets?.take(3)?.map { it.id to it.label }) { dash?.let { updateShortcuts(it.presets.take(3)) } }
             LedgerAppTheme(settings.theme, settings.hideAmounts) {
-                when {
+                // Strings are read from a global language setting, so the whole tree is rebuilt when it changes.
+                androidx.compose.runtime.key(settings.language) { when {
                     !settings.onboarded -> Onboarding(vm)
                     locked && settings.biometricLock -> LockScreen { authenticate() }
                     else -> LedgerRoot(vm, launch)
-                }
+                } }
             }
         }
         if (locked) authenticate()
@@ -119,7 +121,7 @@ class MainActivity : FragmentActivity() {
         })
         prompt.authenticate(
             BiometricPrompt.PromptInfo.Builder()
-                .setTitle("Unlock Ledger")
+                .setTitle(tr("Unlock Ledger"))
                 .setAllowedAuthenticators(BIOMETRIC_WEAK or DEVICE_CREDENTIAL)
                 .build(),
         )
@@ -157,9 +159,9 @@ private fun LockScreen(onUnlock: () -> Unit) {
                 androidx.compose.material3.Icon(Icons.Rounded.Lock, null, tint = c.accent)
             }
             Spacer(Modifier.height(Space.l))
-            androidx.compose.material3.Text("Ledger is locked", style = LedgerTheme.type.headline, color = c.text)
+            androidx.compose.material3.Text(tr("Ledger is locked"), style = LedgerTheme.type.headline, color = c.text)
             Spacer(Modifier.height(Space.xxl))
-            PrimaryButton("Unlock", Modifier.width(200.dp).padding(horizontal = Space.l), onClick = onUnlock)
+            PrimaryButton(tr("Unlock"), Modifier.width(200.dp).padding(horizontal = Space.l), onClick = onUnlock)
         }
     }
 }

@@ -1,5 +1,6 @@
 package dev.personal.ledger.reminders
 
+import dev.personal.ledger.i18n.tr
 import android.Manifest
 import android.app.NotificationChannel
 import android.app.NotificationManager
@@ -47,7 +48,7 @@ object Reminders {
     fun ensureChannel(context: Context) {
         if (Build.VERSION.SDK_INT >= 26) {
             val nm = context.getSystemService(NotificationManager::class.java)
-            nm.createNotificationChannel(NotificationChannel(CHANNEL, "Bills & payments due", NotificationManager.IMPORTANCE_DEFAULT))
+            nm.createNotificationChannel(NotificationChannel(CHANNEL, tr("Bills & payments due"), NotificationManager.IMPORTANCE_DEFAULT))
         }
     }
 
@@ -79,8 +80,8 @@ object Reminders {
                     o.cardId?.let { putExtra(EXTRA_CARD, it) }
                 }
                 val pi = PendingIntent.getActivity(applicationContext, o.key.hashCode(), intent, PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT)
-                val title = if (o.variable) "${o.title} is due — enter the amount" else "${o.title} · ${Money.compact(o.amount)} due"
-                val body = if (o.variable) "Usually about ${Money.compact(o.amount)}. Tap to record it." else "Due ${o.date}. Tap to pay."
+                val title = if (o.variable) tr("%s is due — enter the amount", o.title) else tr("%s · %s due", o.title, Money.compact(o.amount))
+                val body = if (o.variable) tr("Usually about %s. Tap to record it.", Money.compact(o.amount)) else tr("Due %s. Tap to pay.", dev.personal.ledger.domain.Fmt.dayMonth(o.date))
                 val n = NotificationCompat.Builder(applicationContext, CHANNEL)
                     .setSmallIcon(R.drawable.ic_notification)
                     .setContentTitle(title)

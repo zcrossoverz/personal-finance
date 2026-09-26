@@ -9,6 +9,8 @@ import kotlinx.serialization.Serializable
 @Serializable
 data class Settings(
     val onboarded: Boolean = false,
+    /** "vi" (default) or "en". */
+    val language: String = "vi",
     val currency: String = "VND",
     val defaultAccountId: Long? = null,
     /** Money in spendable accounts that must never be counted as safe to spend. */
@@ -30,7 +32,7 @@ data class Settings(
 class Prefs(context: Context) {
     private val sp = context.getSharedPreferences("ledger", Context.MODE_PRIVATE)
     private val json = kotlinx.serialization.json.Json { ignoreUnknownKeys = true; encodeDefaults = true }
-    private val _settings = MutableStateFlow(load())
+    private val _settings = MutableStateFlow(load().also(::applyLocale))
     val settings: StateFlow<Settings> = _settings
 
     private fun load(): Settings = sp.getString("settings", null)
@@ -39,9 +41,15 @@ class Prefs(context: Context) {
 
     fun update(transform: (Settings) -> Settings) {
         val next = transform(_settings.value)
+        applyLocale(next)
         _settings.value = next
         sp.edit().putString("settings", json.encodeToString(Settings.serializer(), next)).apply()
     }
 
     fun replace(s: Settings) = update { s }
+
+    /** Language is global state read by formatting code, so it is applied before observers see the new settings. */
+    private fun applyLocale(s: Settings) {
+        dev.personal.ledger.i18n.I18n.lang = dev.personal.ledger.i18n.Lang.of(s.language)
+    }
 }

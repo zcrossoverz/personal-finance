@@ -20,13 +20,26 @@ android {
         versionName = "1.0.0"
     }
 
+    // Release signing comes from the environment (CI secrets or a local keystore), never from the repo.
+    // Without it, release falls back to the debug key so `assembleRelease` still installs directly.
+    val keystorePath: String? = System.getenv("LEDGER_KEYSTORE_PATH")
+    if (keystorePath != null) {
+        signingConfigs {
+            create("release") {
+                storeFile = file(keystorePath)
+                storePassword = System.getenv("LEDGER_KEYSTORE_PASSWORD")
+                keyAlias = System.getenv("LEDGER_KEY_ALIAS")
+                keyPassword = System.getenv("LEDGER_KEY_PASSWORD")
+            }
+        }
+    }
+
     buildTypes {
         release {
             isMinifyEnabled = true
             isShrinkResources = true
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
-            // Personal app: sign release with the debug key so `assembleRelease` installs directly.
-            signingConfig = signingConfigs.getByName("debug")
+            signingConfig = signingConfigs.findByName("release") ?: signingConfigs.getByName("debug")
         }
     }
 

@@ -1,5 +1,6 @@
 package dev.personal.ledger.ui.money
 
+import dev.personal.ledger.i18n.tr
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -107,7 +108,7 @@ fun AccountDetailScreen(d: Dashboard, vm: LedgerViewModel, nav: Nav, id: Long) {
         out.toList()
     }
     var sel by remember { mutableStateOf<Int?>(null) }
-    Screen(a.name, onBack = { nav.pop() }, actions = { IconAction(Icons.Rounded.Edit, "Edit account") { nav.push(Route.EditAccount(id)) } }) {
+    Screen(a.name, onBack = { nav.pop() }, actions = { IconAction(Icons.Rounded.Edit, tr("Edit account")) { nav.push(Route.EditAccount(id)) } }) {
         if (a.type == AccountType.CREDIT_CARD) {
             item { CreditCard(Cards.status(d.data, a, d.today, d.balances), d, onPay = {
                 val s = Cards.status(d.data, a, d.today, d.balances)
@@ -116,7 +117,7 @@ fun AccountDetailScreen(d: Dashboard, vm: LedgerViewModel, nav: Nav, id: Long) {
         } else item {
             Column(Modifier.padding(horizontal = Space.gutter, vertical = Space.s)) {
                 val shown = sel?.let { history[it] } ?: balance
-                Text(sel?.let { Fmt.full(d.today.minusDays((history.size - 1 - it).toLong())) } ?: "Balance", style = LedgerTheme.type.label, color = c.textMuted)
+                Text(sel?.let { Fmt.full(d.today.minusDays((history.size - 1 - it).toLong())) } ?: tr("Balance"), style = LedgerTheme.type.label, color = c.textMuted)
                 Amount(shown, style = LedgerTheme.type.hero, format = AmountFormat.FULL, color = if (shown < 0) c.negative else c.text)
             }
         }
@@ -125,7 +126,7 @@ fun AccountDetailScreen(d: Dashboard, vm: LedgerViewModel, nav: Nav, id: Long) {
                 LineChart(history, (0 until history.size).map { Fmt.dayMonth(d.today.minusDays((history.size - 1 - it).toLong())) }, sel, { sel = it }, height = 130.dp)
             }
         }
-        if (txs.isEmpty()) item { EmptyState(Icons.Rounded.SearchOff, "No transactions", "Everything paid from or into ${a.name} will appear here.") }
+        if (txs.isEmpty()) item { EmptyState(Icons.Rounded.SearchOff, tr("No transactions"), tr("Everything paid from or into %s will appear here.", a.name)) }
         groupByDay(txs.take(300)).forEach { (day, list) ->
             item(key = "d$day") { DayHeader(day, d.today, list.sumOf { -Ledger.delta(it, id) }) }
             items(list, key = { it.id }) { t -> TxRow(t, d.data) { nav.open(SheetRequest.TxDetail(t.id)) } }
@@ -150,7 +151,7 @@ fun ActivityScreen(d: Dashboard, vm: LedgerViewModel, nav: Nav, initial: String)
 
     Column(Modifier.fillMaxSize().background(c.bg)) {
         Row(Modifier.fillMaxWidth().statusBarsPadding().padding(start = 4.dp, end = Space.l, top = 4.dp), verticalAlignment = Alignment.CenterVertically) {
-            IconAction(Icons.AutoMirrored.Rounded.ArrowBack, "Back") { nav.pop() }
+            IconAction(Icons.AutoMirrored.Rounded.ArrowBack, tr("Back")) { nav.pop() }
             BasicTextField(
                 query, { query = it },
                 Modifier.weight(1f).heightIn(min = 48.dp).clip(Shapes.pill).background(c.surfaceAlt).padding(horizontal = 18.dp, vertical = 14.dp).focusRequester(fr),
@@ -158,15 +159,15 @@ fun ActivityScreen(d: Dashboard, vm: LedgerViewModel, nav: Nav, initial: String)
                 keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search), keyboardActions = KeyboardActions(onSearch = { focus.clearFocus() }),
                 decorationBox = { inner ->
                     Row(verticalAlignment = Alignment.CenterVertically) {
-                        Box(Modifier.weight(1f)) { if (query.isEmpty()) Text("Search: shopee, > 1m, food this week", style = LedgerTheme.type.body, color = c.textFaint); inner() }
-                        if (query.isNotEmpty()) Icon(Icons.Rounded.Close, "Clear", tint = c.textMuted, modifier = Modifier.size(20.dp).clickable { query = "" })
+                        Box(Modifier.weight(1f)) { if (query.isEmpty()) Text(tr("Search: shopee, > 1m, food this week"), style = LedgerTheme.type.body, color = c.textFaint); inner() }
+                        if (query.isNotEmpty()) Icon(Icons.Rounded.Close, tr("Clear"), tint = c.textMuted, modifier = Modifier.size(20.dp).clickable { query = "" })
                     }
                 },
             )
         }
         if (query.isEmpty()) {
             LazyRow(contentPadding = PaddingValues(horizontal = Space.l, vertical = Space.s), horizontalArrangement = Arrangement.spacedBy(Space.s)) {
-                items(listOf("this month", "food this week", "shopee", "> 1m", "subscriptions", "transfer", "refund", "last month")) { s -> Chip(s) { query = s } }
+                items(if (dev.personal.ledger.i18n.I18n.vi) listOf("tháng này", "ăn uống tuần này", "shopee", "> 1tr", "đăng ký", "chuyển", "hoàn tiền", "tháng trước") else listOf("this month", "food this week", "shopee", "> 1m", "subscriptions", "transfer", "refund", "last month")) { s -> Chip(s) { query = s } }
             }
         } else {
             Row(Modifier.fillMaxWidth().padding(horizontal = Space.gutter, vertical = Space.s), verticalAlignment = Alignment.CenterVertically) {
@@ -176,13 +177,13 @@ fun ActivityScreen(d: Dashboard, vm: LedgerViewModel, nav: Nav, initial: String)
                 }
             }
             Row(Modifier.fillMaxWidth().padding(horizontal = Space.gutter).padding(bottom = Space.s)) {
-                Text("${results.size} transactions", style = LedgerTheme.type.label, color = c.textMuted, modifier = Modifier.weight(1f))
-                if (spent != 0L) { Text("Spent ", style = LedgerTheme.type.label, color = c.textMuted); Amount(spent, style = LedgerTheme.type.label) }
-                if (income > 0) { Text("  In ", style = LedgerTheme.type.label, color = c.textMuted); Amount(income, style = LedgerTheme.type.label, color = c.positive) }
+                Text(tr("%d transactions", results.size), style = LedgerTheme.type.label, color = c.textMuted, modifier = Modifier.weight(1f))
+                if (spent != 0L) { Text(tr("Spent") + " ", style = LedgerTheme.type.label, color = c.textMuted); Amount(spent, style = LedgerTheme.type.label) }
+                if (income > 0) { Text("  " + tr("In") + " ", style = LedgerTheme.type.label, color = c.textMuted); Amount(income, style = LedgerTheme.type.label, color = c.positive) }
             }
         }
         LazyColumn(Modifier.fillMaxSize(), state = list, contentPadding = PaddingValues(bottom = 140.dp)) {
-            if (results.isEmpty()) item { EmptyState(Icons.Rounded.SearchOff, "No matches", "Try a merchant, an amount like 500k, a range like > 1m, or a period like “last month”.") }
+            if (results.isEmpty()) item { EmptyState(Icons.Rounded.SearchOff, tr("No matches"), tr("Try a merchant, an amount like 500k, a range like > 1m, or a period like “last month”.")) }
             if (query.isBlank()) groupByDay(results.take(600)).forEach { (day, txs) ->
                 item(key = "d$day") { DayHeader(day, d.today, txs.filter { it.type == TxType.EXPENSE }.sumOf { it.amount }) }
                 items(txs, key = { it.id }) { t ->
@@ -196,7 +197,7 @@ fun ActivityScreen(d: Dashboard, vm: LedgerViewModel, nav: Nav, initial: String)
                     TxRow(t, d.data, showDate = true) { nav.open(SheetRequest.TxDetail(t.id)) }
                 }
             }
-            if (results.size > 600) item { Text("Showing the latest 600 — refine the search to see older ones.", style = LedgerTheme.type.caption, color = c.textMuted, modifier = Modifier.padding(Space.gutter)) }
+            if (results.size > 600) item { Text(tr("Showing the latest 600 — refine the search to see older ones."), style = LedgerTheme.type.caption, color = c.textMuted, modifier = Modifier.padding(Space.gutter)) }
         }
     }
 }
@@ -221,30 +222,30 @@ fun EditAccountScreen(d: Dashboard, vm: LedgerViewModel, nav: Nav, id: Long?) {
     val card = type == AccountType.CREDIT_CARD
     val sDay = statementDay.toIntOrNull(); val dDay = dueDay.toIntOrNull()
     val valid = name.isNotBlank() && bal != null && (!card || ((sDay == null || sDay in 1..31) && (dDay == null || dDay in 1..31)))
-    val names = mapOf(AccountType.CASH to "Cash", AccountType.BANK to "Bank", AccountType.EWALLET to "E-wallet", AccountType.SAVINGS to "Savings", AccountType.CREDIT_CARD to "Credit card", AccountType.OTHER to "Other")
+    val names = mapOf(AccountType.CASH to tr("Cash"), AccountType.BANK to tr("Bank"), AccountType.EWALLET to tr("E-wallet"), AccountType.SAVINGS to tr("Savings"), AccountType.CREDIT_CARD to tr("Credit card"), AccountType.OTHER to tr("Other"))
 
-    Screen(if (existing == null) "New account" else "Edit ${existing.name}", onBack = { nav.pop() }) {
+    Screen(if (existing == null) tr("New account") else tr("Edit %s", existing.name), onBack = { nav.pop() }) {
         item {
-            FieldLabel("Type"); ChoiceRow(AccountType.entries, type, { names[it]!! }) { type = it; spendable = it != AccountType.SAVINGS && it != AccountType.CREDIT_CARD }
-            FieldLabel("Name"); TextInput(name, { name = it }, "MB Bank, Tiền mặt, MoMo…")
-            FieldLabel(if (card) "Current debt on the card" else "Current balance")
-            AmountInput(balance, { balance = it }, helper = if (existing != null) "Changing this records a balance adjustment" else null)
-            FieldLabel("Short names for quick entry"); TextInput(aliases, { aliases = it }, "mb, mbbank", helper = "Used in commands like “350k xăng mb” and in search")
+            FieldLabel(tr("Type")); ChoiceRow(AccountType.entries, type, { names[it]!! }) { type = it; spendable = it != AccountType.SAVINGS && it != AccountType.CREDIT_CARD }
+            FieldLabel(tr("Name")); TextInput(name, { name = it }, "MB Bank, Tiền mặt, MoMo…")
+            FieldLabel(if (card) tr("Current debt on the card") else tr("Current balance"))
+            AmountInput(balance, { balance = it }, helper = if (existing != null) tr("Changing this records a balance adjustment") else null)
+            FieldLabel(tr("Short names for quick entry")); TextInput(aliases, { aliases = it }, "mb, mbbank", helper = tr("Used in commands like “350k xăng mb” and in search"))
             if (card) {
-                FieldLabel("Credit limit"); AmountInput(limit, { limit = it })
+                FieldLabel(tr("Credit limit")); AmountInput(limit, { limit = it })
                 Row {
-                    Column(Modifier.weight(1f)) { FieldLabel("Statement day"); TextInput(statementDay, { statementDay = it.filter(Char::isDigit).take(2) }, "20", keyboard = KeyboardType.Number) }
-                    Column(Modifier.weight(1f)) { FieldLabel("Payment due day"); TextInput(dueDay, { dueDay = it.filter(Char::isDigit).take(2) }, "5", keyboard = KeyboardType.Number) }
+                    Column(Modifier.weight(1f)) { FieldLabel(tr("Statement day")); TextInput(statementDay, { statementDay = it.filter(Char::isDigit).take(2) }, "20", keyboard = KeyboardType.Number) }
+                    Column(Modifier.weight(1f)) { FieldLabel(tr("Payment due day")); TextInput(dueDay, { dueDay = it.filter(Char::isDigit).take(2) }, "5", keyboard = KeyboardType.Number) }
                 }
-                Text("Card purchases count as spending when made. Paying the card is a transfer, not another expense.", style = LedgerTheme.type.caption, color = c.textMuted,
+                Text(tr("Card purchases count as spending when made. Paying the card is a transfer, not another expense."), style = LedgerTheme.type.caption, color = c.textMuted,
                     modifier = Modifier.padding(horizontal = Space.gutter, vertical = Space.s))
             }
-            FieldLabel("Colour"); HueChoice(color) { color = it }
+            FieldLabel(tr("Colour")); HueChoice(color) { color = it }
             Spacer(Modifier.height(Space.s))
-            if (!card && type != AccountType.SAVINGS) ToggleRow("Counts toward safe to spend", spendable) { spendable = it }
-            if (!card) ToggleRow("Default account", isDefault, "Used when a preset has no account of its own") { isDefault = it }
-            if (existing != null) ToggleRow("Archived", archived, "Hidden from pickers; history is kept") { archived = it }
-            FormFooter("Save", valid, onSave = {
+            if (!card && type != AccountType.SAVINGS) ToggleRow(tr("Counts toward safe to spend"), spendable) { spendable = it }
+            if (!card) ToggleRow(tr("Default account"), isDefault, tr("Used when a preset has no account of its own")) { isDefault = it }
+            if (existing != null) ToggleRow(tr("Archived"), archived, tr("Hidden from pickers; history is kept")) { archived = it }
+            FormFooter(tr("Save"), valid, onSave = {
                 val target = if (card) -(bal ?: 0) else (bal ?: 0)
                 val base = Account(
                     id = existing?.id ?: 0, name = name.trim(), type = type, aliases = aliases.trim(),
@@ -256,7 +257,7 @@ fun EditAccountScreen(d: Dashboard, vm: LedgerViewModel, nav: Nav, id: Long?) {
                     val newId = vm.repo.saveAccount(base)
                     if (existing != null) {
                         val current = d.balances[existing.id] ?: 0
-                        if (target != current) vm.repo.add(Txn(type = TxType.ADJUSTMENT, amount = target - current, accountId = existing.id, date = System.currentTimeMillis(), note = "Balance adjustment"))
+                        if (target != current) vm.repo.add(Txn(type = TxType.ADJUSTMENT, amount = target - current, accountId = existing.id, date = System.currentTimeMillis(), note = tr("Balance adjustment")))
                     }
                     if (isDefault) vm.updateSettings { it.copy(defaultAccountId = newId) }
                     else if (settings.defaultAccountId == newId) vm.updateSettings { it.copy(defaultAccountId = null) }

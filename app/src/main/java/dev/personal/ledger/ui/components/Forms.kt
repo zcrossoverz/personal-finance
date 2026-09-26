@@ -42,6 +42,8 @@ import dev.personal.ledger.data.Account
 import dev.personal.ledger.data.Category
 import dev.personal.ledger.domain.Fmt
 import dev.personal.ledger.domain.Money
+import dev.personal.ledger.i18n.tr
+import androidx.compose.foundation.border
 import dev.personal.ledger.ui.theme.LedgerTheme
 import dev.personal.ledger.ui.theme.Shapes
 import dev.personal.ledger.ui.theme.Space
@@ -75,10 +77,10 @@ fun TextInput(value: String, onChange: (String) -> Unit, placeholder: String, mo
 fun AmountInput(value: String, onChange: (String) -> Unit, placeholder: String = "0", helper: String? = null) {
     val parsed = Money.parse(value)
     TextInput(value, onChange, placeholder, helper = when {
-        value.isBlank() -> helper ?: "Type 260k, 4.5m or a full number"
+        value.isBlank() -> helper ?: tr("Type 260k, 4.5tr or a full number")
         parsed == null -> null
-        else -> "= ${Money.full(parsed)}"
-    }, error = if (value.isNotBlank() && parsed == null) "Not a valid amount" else null)
+        else -> "= " + Money.full(parsed)
+    }, error = if (value.isNotBlank() && parsed == null) tr("Not a valid amount") else null)
 }
 
 @Composable
@@ -126,8 +128,8 @@ fun DateField(date: LocalDate, onChange: (LocalDate) -> Unit) {
         val state = rememberDatePickerState(initialSelectedDateMillis = date.atStartOfDay().toInstant(ZoneOffset.UTC).toEpochMilli())
         DatePickerDialog(
             onDismissRequest = { open = false },
-            confirmButton = { TextButton({ state.selectedDateMillis?.let { onChange(Instant.ofEpochMilli(it).atZone(ZoneOffset.UTC).toLocalDate()) }; open = false }) { Text("OK") } },
-            dismissButton = { TextButton({ open = false }) { Text("Cancel") } },
+            confirmButton = { TextButton({ state.selectedDateMillis?.let { onChange(Instant.ofEpochMilli(it).atZone(ZoneOffset.UTC).toLocalDate()) }; open = false }) { Text(tr("OK")) } },
+            dismissButton = { TextButton({ open = false }) { Text(tr("Cancel")) } },
         ) { DatePicker(state) }
     }
 }
@@ -138,7 +140,8 @@ fun IconChoice(selected: String, tint: androidx.compose.ui.graphics.Color, onSel
     LazyRow(contentPadding = PaddingValues(horizontal = Space.l), horizontalArrangement = Arrangement.spacedBy(Space.s)) {
         items(LedgerIcons.pickable) { key ->
             Box(
-                Modifier.clip(Shapes.well).background(if (key == selected) tint.copy(alpha = 0.22f) else c.surfaceAlt).clickable { onSelect(key) }.padding(10.dp),
+                Modifier.clip(Shapes.well).background(if (key == selected) c.accentSoft else c.surfaceAlt)
+                    .border(1.5.dp, if (key == selected) c.accent else androidx.compose.ui.graphics.Color.Transparent, Shapes.well).clickable { onSelect(key) }.padding(10.dp),
             ) { androidx.compose.material3.Icon(LedgerIcons.of(key), key, tint = if (key == selected) tint else c.textMuted) }
         }
     }

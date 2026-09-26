@@ -1,5 +1,6 @@
 package dev.personal.ledger.domain
 
+import dev.personal.ledger.i18n.tr
 import dev.personal.ledger.data.Category
 import dev.personal.ledger.data.LedgerData
 import dev.personal.ledger.data.Settings
@@ -94,7 +95,7 @@ object Analytics {
         val flexCats = cats.filterNot { Ledger.isFixed(data, it.category?.id) }
 
         val income = data.transactions.filter { it.type == TxType.INCOME && it.date in m.startMillis()..m.endMillis() }
-        val sources = income.groupBy { data.categoryById[it.categoryId]?.name ?: "Other income" }
+        val sources = income.groupBy { data.categoryById[it.categoryId]?.name ?: tr("Other income") }
             .map { (k, v) -> k to v.sumOf { it.amount } }.sortedByDescending { it.second }
 
         var we = 0L; var wd = 0L; var weDays = 0; var wdDays = 0

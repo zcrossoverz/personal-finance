@@ -1,0 +1,76 @@
+name: Android build
+
+on:
+  push:
+    branches: [main]
+    tags: ["v*"]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: write # needed to publish a GitHub Release for version tags
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      # Optional release signing. Add these repository secrets to get APKs that update each other:
+      #   LEDGER_KEYSTORE_BASE64, LEDGER_KEYSTORE_PASSWORD, LEDGER_KEY_ALIAS, LEDGER_KEY_PASSWORD
+      # Without them the release APK is signed with a throwaway debug key (installable, but each CI build
+      # has a different key, so you must uninstall before installing a newer one).
+      HAS_KEYSTORE: ${{ secrets.LEDGER_KEYSTORE_BASE64 != '' }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - uses: gradle/actions/setup-gradle@v4
+
+      - name: Decode signing keystore
+        if: env.HAS_KEYSTORE == 'true'
+        run: |
+          echo "${{ secrets.LEDGER_KEYSTORE_BASE64 }}" | base64 -d > "$RUNNER_TEMP/ledger.jks"
+          echo "LEDGER_KEYSTORE_PATH=$RUNNER_TEMP/ledger.jks" >> "$GITHUB_ENV"
+
+      - name: Unit tests
+        run: ./gradlew :app:testDebugUnitTest --stacktrace
+
+      - name: Build APKs
+        env:
+          LEDGER_KEYSTORE_PASSWORD: ${{ secrets.LEDGER_KEYSTORE_PASSWORD }}
+          LEDGER_KEY_ALIAS: ${{ secrets.LEDGER_KEY_ALIAS }}
+          LEDGER_KEY_PASSWORD: ${{ secrets.LEDGER_KEY_PASSWORD }}
+        run: ./gradlew :app:assembleDebug :app:assembleRelease --stacktrace
+
+      - name: Name artifacts
+        run: |
+          mkdir -p dist
+          cp app/build/outputs/apk/release/app-release.apk "dist/ledger-${GITHUB_REF_NAME//\//-}-release.apk"
+          cp app/build/outputs/apk/debug/app-debug.apk "dist/ledger-${GITHUB_REF_NAME//\//-}-debug.apk"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ledger-apk
+          path: dist/*.apk
+          retention-days: 30
+
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: test-reports
+          path: app/build/reports/tests/
+
+      - name: Publish release
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: dist/*-release.apk
+          generate_release_notes: true

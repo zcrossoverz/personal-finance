@@ -1,5 +1,12 @@
 package dev.personal.ledger.ui.insights
 
+import dev.personal.ledger.ui.components.Divider
+import androidx.compose.material.icons.rounded.DragHandle
+import androidx.compose.material.icons.rounded.SouthEast
+import androidx.compose.material.icons.rounded.NorthEast
+import androidx.compose.material.icons.rounded.Schedule
+import androidx.compose.ui.unit.sp
+import dev.personal.ledger.i18n.tr
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
@@ -113,36 +120,36 @@ fun InsightsScreen(d: Dashboard, vm: LedgerViewModel, nav: Nav) {
         item(key = "title") {
             Row(Modifier.statusBarsPadding().padding(start = Space.gutter, end = 6.dp, top = Space.m, bottom = Space.s), verticalAlignment = Alignment.CenterVertically) {
                 Column(Modifier.weight(1f)) {
-                    Text("Insights", style = LedgerTheme.type.title, color = c.text)
-                    Text(Fmt.monthYear(month) + if (month == current) " · day ${d.today.dayOfMonth}/${month.lengthOfMonth()}" else "", style = LedgerTheme.type.label, color = c.textMuted)
+                    Text(tr("Insights"), style = LedgerTheme.type.title, color = c.text)
+                    Text(Fmt.monthYear(month) + if (month == current) " · " + tr("day %d/%d", d.today.dayOfMonth, month.lengthOfMonth()) else "", style = LedgerTheme.type.caption.copy(fontSize = 13.sp), color = c.textMuted)
                 }
-                MonthArrow(Icons.AutoMirrored.Rounded.KeyboardArrowLeft, "Previous month") { monthStr = month.minusMonths(1).toString() }
-                MonthArrow(Icons.AutoMirrored.Rounded.KeyboardArrowRight, "Next month", enabled = month < current) { monthStr = month.plusMonths(1).toString() }
+                MonthArrow(Icons.AutoMirrored.Rounded.KeyboardArrowLeft, tr("Previous month")) { monthStr = month.minusMonths(1).toString() }
+                MonthArrow(Icons.AutoMirrored.Rounded.KeyboardArrowRight, tr("Next month"), enabled = month < current) { monthStr = month.plusMonths(1).toString() }
             }
         }
         val m = model
         if (m == null) { item { Box(Modifier.fillMaxWidth().height(400.dp)) }; return@LazyColumn }
         if (m.month.spending == 0L && m.month.income == 0L) {
-            item { EmptyState(Icons.Rounded.Insights, "No activity in ${Fmt.month(month)}", "Insights appear once there are transactions in this month.") }
+            item { EmptyState(Icons.Rounded.Insights, tr("No activity in %s", Fmt.month(month)), tr("Insights appear once there are transactions in this month.")) }
             if (m.bars.any { it.spending > 0 || it.income > 0 }) item { SixMonths(m, month) { monthStr = it.toString() } }
             return@LazyColumn
         }
         item(key = "flow") { CashFlowCard(m) }
         item(key = "pace") { PaceCard(m, month == current) }
         if (m.insights.isNotEmpty()) {
-            item(key = "ins-h") { SectionHeader("What stands out", Modifier.padding(top = Space.m)) }
+            item(key = "ins-h") { SectionHeader(tr("What stands out"), Modifier.padding(top = Space.m)) }
             item(key = "ins") { InsightList(m.insights) { id -> nav.push(Route.CategoryDetail(id, month)) } }
         }
-        item(key = "cat-h") { SectionHeader("Where it went", Modifier.padding(top = Space.m)) }
+        item(key = "cat-h") { SectionHeader(tr("Where it went"), Modifier.padding(top = Space.m)) }
         item(key = "cats") { CategoryBreakdown(m.month) { id -> nav.push(Route.CategoryDetail(id, month)) } }
         item(key = "fixed") { FixedFlexible(m.month) }
-        item(key = "heat-h") { SectionHeader("Daily spending", Modifier.padding(top = Space.m)) }
+        item(key = "heat-h") { SectionHeader(tr("Daily spending"), Modifier.padding(top = Space.m)) }
         item(key = "heat") { Heatmap(m.month, d.today, nav) }
         if (m.month.income > 0) {
-            item(key = "sankey-h") { SectionHeader("Money flow", Modifier.padding(top = Space.m)) }
+            item(key = "sankey-h") { SectionHeader(tr("Money flow"), Modifier.padding(top = Space.m)) }
             item(key = "sankey") { FlowCard(m.month) }
         }
-        item(key = "six-h") { SectionHeader("Last 6 months", Modifier.padding(top = Space.m)) }
+        item(key = "six-h") { SectionHeader(tr("Last 6 months"), Modifier.padding(top = Space.m)) }
         item(key = "six") { SixMonths(m, month) { monthStr = it.toString() } }
     }
 }
@@ -168,26 +175,26 @@ private fun CashFlowCard(m: InsightsModel) {
     val c = LedgerTheme.colors
     val mo = m.month
     LedgerCard(Modifier.fillMaxWidth().padding(horizontal = Space.l, vertical = Space.s)) {
-        Text("Cash flow", style = LedgerTheme.type.label, color = c.textMuted)
+        Text(tr("Cash flow"), style = LedgerTheme.type.label, color = c.textMuted)
         Spacer(Modifier.height(Space.s))
         Row {
-            FlowMetric("Income", mo.income, m.previous.income, c.positive, Modifier.weight(1f), higherIsGood = true)
-            FlowMetric("Spending", mo.spending, if (mo.isPartial) m.previous.cumulative.getOrElse(mo.throughDay - 1) { m.previous.spending } else m.previous.spending, c.text, Modifier.weight(1f), higherIsGood = false)
-            FlowMetric("Kept", mo.net, null, if (mo.net < 0) c.negative else c.text, Modifier.weight(1f), higherIsGood = true)
+            FlowMetric(tr("Income"), mo.income, m.previous.income, c.positive, Modifier.weight(1f), higherIsGood = true)
+            FlowMetric(tr("Spending"), mo.spending, if (mo.isPartial) m.previous.cumulative.getOrElse(mo.throughDay - 1) { m.previous.spending } else m.previous.spending, c.text, Modifier.weight(1f), higherIsGood = false)
+            FlowMetric(tr("Kept"), mo.net, null, if (mo.net < 0) c.negative else c.text, Modifier.weight(1f), higherIsGood = true)
         }
         if (mo.income > 0) {
             Spacer(Modifier.height(Space.m))
             StackedBar(listOf(mo.fixed to c.accent, mo.flexible to c.accent.copy(alpha = 0.45f), (mo.income - mo.spending).coerceAtLeast(0) to c.positive.copy(alpha = 0.6f)))
             Spacer(Modifier.height(6.dp))
             Row {
-                LegendDot(c.accent, "Fixed ${Money.compact(mo.fixed)}"); Spacer(Modifier.width(Space.m))
-                LegendDot(c.accent.copy(alpha = 0.45f), "Flexible ${Money.compact(mo.flexible)}"); Spacer(Modifier.width(Space.m))
-                if (mo.net > 0) LegendDot(c.positive.copy(alpha = 0.6f), "Kept ${(mo.net * 100 / mo.income)}%")
+                LegendDot(c.accent, tr("Fixed %s", Money.compact(mo.fixed))); Spacer(Modifier.width(Space.m))
+                LegendDot(c.accent.copy(alpha = 0.45f), tr("Flexible %s", Money.compact(mo.flexible))); Spacer(Modifier.width(Space.m))
+                if (mo.net > 0) LegendDot(c.positive.copy(alpha = 0.6f), tr("Kept %d%%", mo.net * 100 / mo.income))
             }
         }
         if (mo.isPartial) {
             Spacer(Modifier.height(6.dp))
-            Text("Spending compared with the same ${mo.throughDay} days of last month.", style = LedgerTheme.type.caption, color = c.textFaint)
+            Text(tr("Spending compared with the same %d days of last month.", mo.throughDay), style = LedgerTheme.type.caption, color = c.textFaint)
         }
     }
 }
@@ -228,25 +235,25 @@ private fun PaceCard(m: InsightsModel, isCurrent: Boolean) {
         val prev = mo.prevCumulative.getOrElse(minOf(day, mo.prevCumulative.size - 1)) { 0 }
         AnimatedContent(sel, transitionSpec = { fadeIn(tween(Motion.FAST)) togetherWith fadeOut(tween(Motion.FAST)) }, label = "pace") { s ->
             Column {
-                Text(if (s == null) "Spending pace" else "${Fmt.monthDay(mo.month.atDay(s + 1))}", style = LedgerTheme.type.label, color = c.textMuted)
+                Text(if (s == null) tr("Spending pace") else Fmt.full(mo.month.atDay(s + 1)), style = LedgerTheme.type.label, color = c.textMuted)
                 Row(verticalAlignment = Alignment.Bottom) {
                     Amount(if (s != null && s >= mo.throughDay) 0 else cur, style = LedgerTheme.type.display)
                     if (avg > 0 && (s == null || s < mo.throughDay)) {
                         val pct = ((cur - avg) * 100.0 / avg).roundToInt()
                         Spacer(Modifier.width(Space.s))
-                        Tag(if (pct >= 0) "$pct% above usual" else "${-pct}% below usual", if (pct > 10) Tone.CAUTION else if (pct < -5) Tone.POSITIVE else Tone.NEUTRAL, Modifier.padding(bottom = 6.dp))
+                        Tag(if (pct >= 0) tr("%d%% above usual", pct) else tr("%d%% below usual", -pct), if (pct > 10) Tone.CAUTION else if (pct < -5) Tone.POSITIVE else Tone.NEUTRAL, Modifier.padding(bottom = 6.dp))
                     }
                 }
-                Text("Last month ${Money.compact(prev)} · 3-month avg ${Money.compact(avg)} by day ${day + 1}", style = LedgerTheme.type.caption, color = c.textMuted)
+                Text(tr("Last month %s · 3-month avg %s by day %d", Money.compact(prev), Money.compact(avg), day + 1), style = LedgerTheme.type.caption, color = c.textMuted)
             }
         }
         Spacer(Modifier.height(Space.m))
         CumulativeChart(mo.cumulative, mo.throughDay, mo.prevCumulative, mo.avgCumulative, sel, { sel = it }, revealKey = mo.month)
         Spacer(Modifier.height(Space.s))
         Row {
-            LegendDot(c.accent, if (isCurrent) "This month" else Fmt.monthShort(mo.month)); Spacer(Modifier.width(Space.m))
-            LegendDot(c.chartMuted, "Last month"); Spacer(Modifier.width(Space.m))
-            LegendDot(c.chartMuted.copy(alpha = 0.6f), "3-mo avg (dashed)")
+            LegendDot(c.accent, if (isCurrent) tr("This month") else Fmt.monthShort(mo.month)); Spacer(Modifier.width(Space.m))
+            LegendDot(c.chartMuted, tr("Last month")); Spacer(Modifier.width(Space.m))
+            LegendDot(c.chartMuted.copy(alpha = 0.6f), tr("3-mo avg (dashed)"))
         }
     }
 }
@@ -254,26 +261,36 @@ private fun PaceCard(m: InsightsModel, isCurrent: Boolean) {
 @Composable
 private fun InsightList(list: List<InsightsCalc.Insight>, onCategory: (Long) -> Unit) {
     val c = LedgerTheme.colors
-    Column(Modifier.padding(horizontal = Space.l)) {
-        list.take(6).forEach { ins ->
-            val (tone, dashed) = when (ins.kind) {
-                InsightsCalc.Kind.FACT -> Tone.NEUTRAL to false
-                InsightsCalc.Kind.ESTIMATE -> Tone.CAUTION to true
-                InsightsCalc.Kind.FORECAST -> Tone.ACCENT to true
+    LedgerCard(Modifier.fillMaxWidth().padding(horizontal = Space.l, vertical = Space.s), padding = PaddingValues(vertical = 4.dp)) {
+        list.take(6).forEachIndexed { i, ins ->
+            val icon = when {
+                ins.kind == InsightsCalc.Kind.FORECAST -> Icons.Rounded.Schedule
+                ins.tone == InsightsCalc.Tone.WARN -> Icons.Rounded.NorthEast
+                ins.tone == InsightsCalc.Tone.GOOD -> Icons.Rounded.SouthEast
+                else -> Icons.Rounded.DragHandle
             }
-            val accentBar = when (ins.tone) { InsightsCalc.Tone.WARN -> c.caution; InsightsCalc.Tone.GOOD -> c.positive; else -> c.hairline }
+            val tint = when (ins.tone) { InsightsCalc.Tone.WARN -> c.caution; InsightsCalc.Tone.GOOD -> c.positive; else -> c.textMuted }
             Row(
-                Modifier.fillMaxWidth().padding(vertical = 4.dp).clip(Shapes.chip).background(c.surface)
-                    .then(if (ins.categoryId != null) Modifier.clickable { onCategory(ins.categoryId) } else Modifier),
+                Modifier.fillMaxWidth().then(if (ins.categoryId != null) Modifier.clickable { onCategory(ins.categoryId) } else Modifier)
+                    .padding(horizontal = Space.l, vertical = Space.m),
             ) {
-                Box(Modifier.width(3.dp).heightIn(min = 72.dp).background(accentBar))
-                Column(Modifier.padding(horizontal = Space.m, vertical = Space.m)) {
-                    Tag(ins.kind.label, tone, dashed = dashed)
-                    Spacer(Modifier.height(6.dp))
+                Icon(icon, null, tint = tint, modifier = Modifier.padding(top = 2.dp).size(18.dp))
+                Spacer(Modifier.width(Space.m))
+                Column(Modifier.weight(1f)) {
                     Text(ins.text, style = LedgerTheme.type.bodyStrong, color = c.text)
-                    Text(ins.detail, style = LedgerTheme.type.caption, color = c.textMuted)
+                    Spacer(Modifier.height(2.dp))
+                    // Kind first, in its colour; the evidence follows on the same line and wraps under itself.
+                    val kindColor = if (ins.kind == InsightsCalc.Kind.FACT) c.textMuted else c.caution
+                    Text(
+                        androidx.compose.ui.text.buildAnnotatedString {
+                            pushStyle(androidx.compose.ui.text.SpanStyle(color = kindColor, fontWeight = androidx.compose.ui.text.font.FontWeight.Medium)); append(ins.kind.label); pop()
+                            append("  ·  " + ins.detail)
+                        },
+                        style = LedgerTheme.type.caption, color = c.textMuted, maxLines = 3, overflow = TextOverflow.Ellipsis,
+                    )
                 }
             }
+            if (i < minOf(list.size, 6) - 1) Divider(inset = 50.dp)
         }
     }
 }
@@ -296,7 +313,7 @@ private fun CategoryBreakdown(m: Analytics.Month, onCategory: (Long?) -> Unit) {
                 Spacer(Modifier.width(Space.m))
                 Column(Modifier.weight(1f)) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
-                        Text(cat?.name ?: "Uncategorised", style = LedgerTheme.type.bodyStrong, color = c.text, modifier = Modifier.weight(1f), maxLines = 1, overflow = TextOverflow.Ellipsis)
+                        Text(cat?.name ?: tr("Uncategorised"), style = LedgerTheme.type.bodyStrong, color = c.text, modifier = Modifier.weight(1f), maxLines = 1, overflow = TextOverflow.Ellipsis)
                         ct.deltaPct?.let { dp ->
                             if (abs(dp) >= 0.1f && ct.baseline > 50_000) Text("${if (dp > 0) "▲" else "▼"}${(abs(dp) * 100).roundToInt()}%  ", style = LedgerTheme.type.caption,
                                 color = if (dp > 0) c.caution else c.positive)
@@ -304,13 +321,13 @@ private fun CategoryBreakdown(m: Analytics.Month, onCategory: (Long?) -> Unit) {
                         Amount(ct.amount, style = LedgerTheme.type.bodyStrong)
                     }
                     Spacer(Modifier.height(6.dp))
-                    Bar(ct.amount.toFloat() / max, color = hue(cat?.colorIndex ?: 0), height = 6.dp, marker = if (ct.baseline > 0) ct.baseline.toFloat() / max else null)
+                    Bar(ct.amount.toFloat() / max, color = c.accent, height = 5.dp, marker = if (ct.baseline > 0) ct.baseline.toFloat() / max else null)
                     Spacer(Modifier.height(3.dp))
-                    Text("${ct.amount * 100 / total}% · ${ct.count} transactions${if (ct.baseline > 0) " · avg ${Money.compact(ct.baseline)}" else ""}", style = LedgerTheme.type.caption, color = c.textMuted)
+                    Text(if (ct.baseline > 0) tr("%d%% · %d transactions · avg %s", ct.amount * 100 / total, ct.count, Money.compact(ct.baseline)) else tr("%d%% · %d transactions", ct.amount * 100 / total, ct.count), style = LedgerTheme.type.caption, color = c.textMuted)
                 }
             }
         }
-        if (cats.size > 10) Text("+ ${cats.size - 10} smaller categories", style = LedgerTheme.type.caption, color = c.textMuted, modifier = Modifier.padding(horizontal = Space.l, vertical = Space.s))
+        if (cats.size > 10) Text(tr("+ %d smaller categories", cats.size - 10), style = LedgerTheme.type.caption, color = c.textMuted, modifier = Modifier.padding(horizontal = Space.l, vertical = Space.s))
     }
 }
 
@@ -319,11 +336,11 @@ private fun FixedFlexible(m: Analytics.Month) {
     val c = LedgerTheme.colors
     if (m.spending <= 0) return
     LedgerCard(Modifier.fillMaxWidth().padding(horizontal = Space.l, vertical = Space.s)) {
-        Text("Fixed vs flexible", style = LedgerTheme.type.label, color = c.textMuted)
+        Text(tr("Fixed vs flexible"), style = LedgerTheme.type.label, color = c.textMuted)
         Spacer(Modifier.height(Space.s))
         Row {
-            Metric("Fixed · ${m.fixed * 100 / m.spending}%", m.fixed, Modifier.weight(1f))
-            Metric("Flexible · ${m.flexible * 100 / m.spending}%", m.flexible, Modifier.weight(1f))
+            Metric(tr("Fixed · %d%%", m.fixed * 100 / m.spending), m.fixed, Modifier.weight(1f))
+            Metric(tr("Flexible · %d%%", m.flexible * 100 / m.spending), m.flexible, Modifier.weight(1f))
         }
         Spacer(Modifier.height(Space.s))
         StackedBar(listOf(m.fixed to c.accent, m.flexible to c.accent.copy(alpha = 0.4f)), height = 10.dp)
@@ -344,12 +361,13 @@ private fun Heatmap(m: Analytics.Month, today: LocalDate, nav: Nav) {
     LedgerCard(Modifier.fillMaxWidth().padding(horizontal = Space.l, vertical = Space.s)) {
         val peak = m.daily.withIndex().maxByOrNull { it.value }
         Text(
-            peak?.let { if (it.value > 0) "Heaviest day: ${Fmt.monthDay(m.month.atDay(it.index + 1))} · ${Money.compact(it.value)}" else null } ?: "No spending yet",
+            peak?.let { if (it.value > 0) tr("Heaviest day: %s · %s", Fmt.monthDay(m.month.atDay(it.index + 1)), Money.compact(it.value)) else null } ?: tr("No spending yet"),
             style = LedgerTheme.type.label, color = c.textMuted,
         )
         Spacer(Modifier.height(Space.s))
         Row(Modifier.fillMaxWidth()) {
-            listOf("M", "T", "W", "T", "F", "S", "S").forEachIndexed { i, s ->
+            // Localized weekday initials, Monday first (T2 … CN in Vietnamese).
+            (0..6).map { k -> Fmt.weekday(java.time.LocalDate.of(2024, 1, 1).plusDays(k.toLong())).let { w -> if (dev.personal.ledger.i18n.I18n.vi) w else w.take(1) } }.forEachIndexed { i, s ->
                 Text(s, style = LedgerTheme.type.caption, color = if (i >= 5) c.text else c.textFaint, modifier = Modifier.weight(1f), textAlign = androidx.compose.ui.text.style.TextAlign.Center)
             }
         }
@@ -360,10 +378,10 @@ private fun Heatmap(m: Analytics.Month, today: LocalDate, nav: Nav) {
         )
         Spacer(Modifier.height(Space.s))
         Row(verticalAlignment = Alignment.CenterVertically) {
-            Text("Weekend ${Money.compact(m.weekendPerDay)}/day · weekday ${Money.compact(m.weekdayPerDay)}/day", style = LedgerTheme.type.caption, color = c.textMuted, modifier = Modifier.weight(1f))
-            Text("Less ", style = LedgerTheme.type.caption, color = c.textFaint)
+            Text(tr("Weekend %s/day · weekday %s/day", Money.compact(m.weekendPerDay), Money.compact(m.weekdayPerDay)), style = LedgerTheme.type.caption, color = c.textMuted, modifier = Modifier.weight(1f))
+            Text(tr("Less") + " ", style = LedgerTheme.type.caption, color = c.textFaint)
             listOf(0.18f, 0.36f, 0.62f, 0.92f).forEach { a -> Box(Modifier.padding(horizontal = 1.dp).size(10.dp).clip(Shapes.pill).background(c.accent.copy(alpha = a))) }
-            Text(" More", style = LedgerTheme.type.caption, color = c.textFaint)
+            Text(" " + tr("More"), style = LedgerTheme.type.caption, color = c.textFaint)
         }
     }
 }
@@ -372,19 +390,19 @@ private fun Heatmap(m: Analytics.Month, today: LocalDate, nav: Nav) {
 private fun FlowCard(m: Analytics.Month) {
     val c = LedgerTheme.colors
     // One income node keeps ribbons from crossing; the sources are listed underneath.
-    val sources = mutableListOf(FlowNode("Income", m.income, c.positive))
+    val sources = mutableListOf(FlowNode(tr("Income"), m.income, c.positive))
     val top = m.categories.filter { it.amount > 0 }.take(5)
     val rest = m.spending - top.sumOf { it.amount }
-    val targets = top.map { FlowNode(it.category?.name ?: "Other", it.amount, hue(it.category?.colorIndex ?: 0)) }.toMutableList()
-    if (rest > 0) targets += FlowNode("Other", rest, c.chartMuted)
+    val targets = top.map { FlowNode(it.category?.name ?: tr("Other"), it.amount, c.accent) }.toMutableList()
+    if (rest > 0) targets += FlowNode(tr("Other"), rest, c.chartMuted)
     val kept = m.income - m.spending
-    if (kept > 0) targets += FlowNode("Kept", kept, c.positive) else if (kept < 0) sources += FlowNode("From balance", -kept, c.caution)
+    if (kept > 0) targets += FlowNode(tr("Kept"), kept, c.positive) else if (kept < 0) sources += FlowNode(tr("From balance"), -kept, c.caution)
     LedgerCard(Modifier.fillMaxWidth().padding(horizontal = Space.l, vertical = Space.s)) {
-        Text("Income ${Money.compact(m.income)} → where it went", style = LedgerTheme.type.label, color = c.textMuted)
+        Text(tr("Income %s → where it went", Money.compact(m.income)), style = LedgerTheme.type.label, color = c.textMuted)
         Spacer(Modifier.height(Space.m))
         MoneyFlowChart(sources, targets)
         Spacer(Modifier.height(Space.s))
-        Text("Income: " + m.incomeSources.joinToString(" · ") { "${it.first} ${Money.compact(it.second)}" } + if (kept < 0) " · ${Money.compact(-kept)} from existing balance" else "", style = LedgerTheme.type.caption, color = c.textMuted)
+        Text(tr("Income:") + " " + m.incomeSources.joinToString(" · ") { "${it.first} ${Money.compact(it.second)}" } + if (kept < 0) " · " + tr("%s from existing balance", Money.compact(-kept)) else "", style = LedgerTheme.type.caption, color = c.textMuted)
     }
 }
 
@@ -395,14 +413,14 @@ private fun SixMonths(m: InsightsModel, selected: YearMonth, onSelect: (YearMont
     val idx = bars.indexOfFirst { it.month == selected }.coerceAtLeast(0)
     LedgerCard(Modifier.fillMaxWidth().padding(horizontal = Space.l, vertical = Space.s)) {
         val avg = bars.filter { it.month != YearMonth.now() && it.spending > 0 }.map { it.spending }.let { if (it.isEmpty()) 0 else it.sum() / it.size }
-        Text("Spending by month · average ${Money.compact(avg)}", style = LedgerTheme.type.label, color = c.textMuted)
+        Text(tr("Spending by month · average %s", Money.compact(avg)), style = LedgerTheme.type.label, color = c.textMuted)
         Spacer(Modifier.height(Space.m))
         MonthBarsChart(bars.map { MonthBarUi(Fmt.monthShort(it.month), it.spending, it.fixed, it.income) }, idx, { onSelect(bars[it].month) })
         Spacer(Modifier.height(Space.s))
         Row {
-            LegendDot(c.accent, "Fixed"); Spacer(Modifier.width(Space.m))
-            LegendDot(c.accent.copy(alpha = 0.45f), "Flexible"); Spacer(Modifier.width(Space.m))
-            LegendDot(c.positive, "Income")
+            LegendDot(c.accent, tr("Fixed")); Spacer(Modifier.width(Space.m))
+            LegendDot(c.accent.copy(alpha = 0.45f), tr("Flexible")); Spacer(Modifier.width(Space.m))
+            LegendDot(c.positive, tr("Income"))
         }
     }
 }
@@ -429,34 +447,34 @@ fun CategoryDetailScreen(d: Dashboard, vm: LedgerViewModel, nav: Nav, categoryId
         }
     }
     val txs = lines.map { it.tx }.distinct().sortedByDescending { it.date }
-    dev.personal.ledger.ui.common.Screen(cat?.name ?: "Uncategorised", onBack = { nav.pop() }, subtitle = Fmt.monthYear(month)) {
+    dev.personal.ledger.ui.common.Screen(cat?.name ?: tr("Uncategorised"), onBack = { nav.pop() }, subtitle = Fmt.monthYear(month)) {
         item {
             Column(Modifier.padding(horizontal = Space.gutter, vertical = Space.s)) {
                 Amount(total, style = LedgerTheme.type.hero, format = AmountFormat.FULL)
-                Text("${txs.size} transactions · ${Money.compact(if (month == YearMonth.from(d.today)) total / d.today.dayOfMonth else total / month.lengthOfMonth())}/day",
+                Text(tr("%d transactions · %s/day", txs.size, Money.compact(if (month == YearMonth.from(d.today)) total / d.today.dayOfMonth else total / month.lengthOfMonth())),
                     style = LedgerTheme.type.label, color = c.textMuted)
             }
         }
         if (bySub.size > 1) item {
             LedgerCard(Modifier.fillMaxWidth().padding(horizontal = Space.l, vertical = Space.s)) {
-                Text("Breakdown", style = LedgerTheme.type.label, color = c.textMuted)
+                Text(tr("Breakdown"), style = LedgerTheme.type.label, color = c.textMuted)
                 val max = bySub.maxOf { it.second }.coerceAtLeast(1)
                 bySub.forEach { (sc, v) ->
                     Spacer(Modifier.height(Space.s))
-                    Row { Text(if (sc?.id == categoryId) "${sc?.name ?: "Other"} (general)" else sc?.name ?: "Other", style = LedgerTheme.type.label, color = c.text, modifier = Modifier.weight(1f)); Amount(v, style = LedgerTheme.type.label) }
+                    Row { Text(if (sc?.id == categoryId) tr("%s (general)", sc?.name ?: tr("Other")) else sc?.name ?: tr("Other"), style = LedgerTheme.type.label, color = c.text, modifier = Modifier.weight(1f)); Amount(v, style = LedgerTheme.type.label) }
                     Spacer(Modifier.height(4.dp))
-                    Bar(v.toFloat() / max, color = hue(sc?.colorIndex ?: cat?.colorIndex ?: 0))
+                    Bar(v.toFloat() / max, color = c.accent, height = 5.dp)
                 }
             }
         }
         item {
             LedgerCard(Modifier.fillMaxWidth().padding(horizontal = Space.l, vertical = Space.s)) {
-                Text("6-month trend", style = LedgerTheme.type.label, color = c.textMuted)
+                Text(tr("6-month trend"), style = LedgerTheme.type.label, color = c.textMuted)
                 Spacer(Modifier.height(Space.m))
                 MonthBarsChart(trend, trend.indexOfFirst { it.label == Fmt.monthShort(month) }.coerceAtLeast(5), {}, height = 130.dp)
             }
         }
-        item { SectionHeader("Transactions", Modifier.padding(top = Space.m)) }
+        item { SectionHeader(tr("Transactions"), Modifier.padding(top = Space.m)) }
         txs.forEach { t -> item(key = t.id) { TxRow(t, d.data, showDate = true) { nav.open(SheetRequest.TxDetail(t.id)) } } }
     }
 }
@@ -471,11 +489,11 @@ fun ColumnScope.DaySheet(d: Dashboard, nav: Nav, date: LocalDate) {
             Text(Fmt.full(date), style = LedgerTheme.type.headline, color = c.text)
             Row(verticalAlignment = Alignment.Bottom) {
                 Amount(spent, style = LedgerTheme.type.display)
-                Text("  spent · ${txs.size} transactions", style = LedgerTheme.type.label, color = c.textMuted, modifier = Modifier.padding(bottom = 5.dp))
+                Text("  " + tr("spent · %d transactions", txs.size), style = LedgerTheme.type.label, color = c.textMuted, modifier = Modifier.padding(bottom = 5.dp))
             }
         }
         Spacer(Modifier.height(Space.s))
-        if (txs.isEmpty()) Text("Nothing recorded this day.", style = LedgerTheme.type.body, color = c.textMuted, modifier = Modifier.padding(Space.gutter))
+        if (txs.isEmpty()) Text(tr("Nothing recorded this day."), style = LedgerTheme.type.body, color = c.textMuted, modifier = Modifier.padding(Space.gutter))
         txs.forEach { t -> TxRow(t, d.data) { nav.open(SheetRequest.TxDetail(t.id)) } }
     }
 }

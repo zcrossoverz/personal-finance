@@ -1,50 +1,52 @@
 package dev.personal.ledger.domain
 
+import dev.personal.ledger.i18n.I18n
 import java.text.Normalizer
 import kotlin.math.abs
 import kotlin.math.roundToLong
 
-/** Currency-aware formatting. VND has no minor unit, so one unit = one đồng. */
+/**
+ * Currency-aware formatting. VND has no minor unit, so one unit = one đồng.
+ * Vietnamese: 65.000 ₫ · 65k · 8,4tr · 1,2tỷ. English: 65,000 ₫ · 65k · 8.4m · 1.2b.
+ */
 object Money {
     var symbol: String = "₫"
 
-    /** 65000 → "65,000 ₫". */
-    fun full(v: Long, sign: Boolean = false): String {
-        val s = group(abs(v))
-        val prefix = when {
-            v < 0 -> "−"
-            sign && v > 0 -> "+"
-            else -> ""
-        }
-        return "$prefix$s $symbol"
-    }
+    private val group get() = if (I18n.vi) '.' else ','
+    private val decimal get() = if (I18n.vi) ',' else '.'
 
-    /** Plain grouped number without symbol: 65000 → "65,000". */
-    fun group(v: Long): String {
-        val digits = abs(v).toString()
+    fun full(v: Long, sign: Boolean = false): String = prefix(v, sign) + digits(abs(v)) + " " + symbol
+
+    /** Grouped number without symbol: 65000 → "65.000" (vi) / "65,000" (en). */
+    fun group(v: Long): String = (if (v < 0) "−" else "") + digits(abs(v))
+
+    private fun digits(a: Long): String {
+        val s = a.toString()
         val sb = StringBuilder()
-        digits.forEachIndexed { i, c ->
-            if (i > 0 && (digits.length - i) % 3 == 0) sb.append(',')
+        s.forEachIndexed { i, c ->
+            if (i > 0 && (s.length - i) % 3 == 0) sb.append(group)
             sb.append(c)
         }
-        return (if (v < 0) "−" else "") + sb.toString()
+        return sb.toString()
     }
 
-    /** Compact, ≤ 3 significant digits: 850 → "850", 65000 → "65k", 1420000 → "1.42m", 8400000 → "8.4m". */
+    private fun prefix(v: Long, sign: Boolean) = when {
+        v < 0 -> "−"
+        sign && v > 0 -> "+"
+        else -> ""
+    }
+
+    /** Compact, ≤ 3 significant digits: 850 → "850", 65000 → "65k", 1420000 → "1,42tr" / "1.42m". */
     fun compact(v: Long, sign: Boolean = false): String {
         val a = abs(v)
+        val (m, b) = if (I18n.vi) "tr" to "tỷ" else "m" to "b"
         val body = when {
             a < 1_000 -> a.toString()
             a < 1_000_000 -> scaled(a, 1_000.0) + "k"
-            a < 1_000_000_000 -> scaled(a, 1_000_000.0) + "m"
-            else -> scaled(a, 1_000_000_000.0) + "b"
+            a < 1_000_000_000 -> scaled(a, 1_000_000.0) + m
+            else -> scaled(a, 1_000_000_000.0) + b
         }
-        val prefix = when {
-            v < 0 -> "−"
-            sign && v > 0 -> "+"
-            else -> ""
-        }
-        return prefix + body
+        return prefix(v, sign) + body
     }
 
     private fun scaled(a: Long, unit: Double): String {
@@ -58,13 +60,12 @@ object Money {
         val r = (x * factor).roundToLong() / factor
         var s = if (decimals == 0) r.roundToLong().toString() else "%.${decimals}f".format(java.util.Locale.US, r)
         if (s.contains('.')) s = s.trimEnd('0').trimEnd('.')
-        return s
+        return s.replace('.', decimal)
     }
 
     /**
-     * Parses user amounts: "65000", "65k", "1.5m", "5tr", "1tr5", "2,5m", "100". Returns null when unparseable.
-     * Bare numbers below 1000 are read literally (the numpad never produces them for VND in practice, but a
-     * command like "85 ăn" is ambiguous, so the command parser applies its own thousand heuristic).
+     * Parses user amounts in either convention: "65000", "65.000", "65,000", "65k", "1.5m", "1,5tr", "5tr",
+     * "1tr5", "2 tỷ". Returns null when unparseable.
      */
     fun parse(input: String): Long? {
         val s = input.trim().lowercase().replace(" ", "").replace("đ", "").replace("₫", "").replace("vnd", "")
@@ -74,21 +75,17 @@ object Money {
             val frac = m.groupValues[2].takeIf { it.isNotEmpty() }?.toLong() ?: 0
             return whole * 1_000_000 + frac * 100_000
         }
-        val m = Regex("^(\\d+(?:[.,]\\d+)?)(k|m|tr|b|ty|tỷ)?$").matchEntire(s) ?: run {
-            val digitsOnly = s.replace(",", "").replace(".", "")
-            return digitsOnly.toLongOrNull()
+        val m = Regex("^(\\d+(?:[.,]\\d+)?)(k|m|tr|trieu|b|ty|tỷ)?$").matchEntire(s) ?: run {
+            return s.replace(",", "").replace(".", "").toLongOrNull()
         }
         val numStr = m.groupValues[1]
         val unit = when (m.groupValues[2]) {
             "k" -> 1_000L
-            "m", "tr" -> 1_000_000L
+            "m", "tr", "trieu" -> 1_000_000L
             "b", "ty", "tỷ" -> 1_000_000_000L
             else -> 1L
         }
-        if (unit == 1L) {
-            // "65,000" / "65.000" grouping
-            return numStr.replace(",", "").replace(".", "").toLongOrNull()
-        }
+        if (unit == 1L) return numStr.replace(",", "").replace(".", "").toLongOrNull()
         val d = numStr.replace(',', '.').toDoubleOrNull() ?: return null
         return (d * unit).roundToLong()
     }

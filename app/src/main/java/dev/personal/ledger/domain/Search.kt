@@ -1,5 +1,6 @@
 package dev.personal.ledger.domain
 
+import dev.personal.ledger.i18n.tr
 import dev.personal.ledger.data.LedgerData
 import dev.personal.ledger.data.RecurringKind
 import dev.personal.ledger.data.TxType
@@ -49,10 +50,21 @@ object Search {
             .replace("this month", "thismonth").replace("thang nay", "thismonth")
             .replace("last month", "lastmonth").replace("thang truoc", "lastmonth")
             .replace("hom nay", "today").replace("hom qua", "yesterday")
+            .replace("dang ky", "dangky").replace("hoan tien", "hoantien").replace("chuyen khoan", "chuyen").replace("thu nhap", "thunhap")
             .replace(Regex("thang\\s+(\\d{1,2})"), "thang$1")
             .replace(Regex("([<>])\\s+"), "$1")
         val text = ArrayList<String>()
-        for (tok in raw.split(Regex("\\s+")).filter { it.isNotBlank() }) {
+        // Multi-word category names first ("ăn uống", "đi chợ", "tiền trọ"), longest first.
+        var rest = " $raw "
+        data.categories.filter { !it.archived && it.name.contains(' ') }.sortedByDescending { it.name.length }.forEach { c ->
+            val key = " " + c.name.fold() + " "
+            if (rest.contains(key)) {
+                rest = rest.replace(key, " ")
+                val ids = listOf(c.id) + data.categories.filter { it.parentId == c.id }.map { it.id }
+                q = q.copy(categoryIds = q.categoryIds + ids, categoryWords = q.categoryWords + c.name.fold()); chips += c.name
+            }
+        }
+        for (tok in rest.split(Regex("\\s+")).filter { it.isNotBlank() }) {
             when {
                 tok.startsWith(">") || tok.startsWith("<") -> {
                     val v = Money.parse(tok.drop(1).removePrefix("=")) ?: continue
@@ -63,15 +75,15 @@ object Search {
                     val v = Money.parse(tok)!!
                     q = q.copy(exact = v); chips += Money.compact(v)
                 }
-                tok == "today" -> { q = q.copy(from = today, to = today); chips += "Today" }
-                tok == "yesterday" -> { q = q.copy(from = today.minusDays(1), to = today.minusDays(1)); chips += "Yesterday" }
+                tok == "today" -> { q = q.copy(from = today, to = today); chips += tr("Today") }
+                tok == "yesterday" -> { q = q.copy(from = today.minusDays(1), to = today.minusDays(1)); chips += tr("Yesterday") }
                 tok == "thisweek" -> {
-                    val start = today.with(DayOfWeek.MONDAY); q = q.copy(from = start, to = today); chips += "This week"
+                    val start = today.with(DayOfWeek.MONDAY); q = q.copy(from = start, to = today); chips += tr("This week")
                 }
                 tok == "lastweek" -> {
-                    val start = today.with(DayOfWeek.MONDAY).minusWeeks(1); q = q.copy(from = start, to = start.plusDays(6)); chips += "Last week"
+                    val start = today.with(DayOfWeek.MONDAY).minusWeeks(1); q = q.copy(from = start, to = start.plusDays(6)); chips += tr("Last week")
                 }
-                tok == "thismonth" -> { q = q.copy(from = today.withDayOfMonth(1), to = today); chips += "This month" }
+                tok == "thismonth" -> { q = q.copy(from = today.withDayOfMonth(1), to = today); chips += tr("This month") }
                 tok == "lastmonth" -> {
                     val m = YearMonth.from(today).minusMonths(1); q = q.copy(from = m.atDay(1), to = m.atEndOfMonth()); chips += Fmt.month(m)
                 }
@@ -83,10 +95,10 @@ object Search {
                         q = q.copy(from = m.atDay(1), to = m.atEndOfMonth()); chips += Fmt.monthYear(m)
                     }
                 }
-                tok in setOf("subscription", "subscriptions", "sub", "subs") -> { q = q.copy(recurringOnly = true); chips += "Subscriptions" }
-                tok in setOf("transfer", "transfers", "chuyen") -> { q = q.copy(types = q.types + TxType.TRANSFER); chips += "Transfers" }
-                tok in setOf("income", "thu") -> { q = q.copy(types = q.types + TxType.INCOME); chips += "Income" }
-                tok in setOf("refund", "refunds", "hoan") -> { q = q.copy(types = q.types + TxType.REFUND + TxType.REIMBURSEMENT); chips += "Refunds" }
+                tok in setOf("subscription", "subscriptions", "sub", "subs", "dangky") -> { q = q.copy(recurringOnly = true); chips += tr("Subscriptions") }
+                tok in setOf("transfer", "transfers", "chuyen") -> { q = q.copy(types = q.types + TxType.TRANSFER); chips += tr("Transfers") }
+                tok in setOf("income", "thu", "thunhap") -> { q = q.copy(types = q.types + TxType.INCOME); chips += tr("Income") }
+                tok in setOf("refund", "refunds", "hoan", "hoantien") -> { q = q.copy(types = q.types + TxType.REFUND + TxType.REIMBURSEMENT); chips += tr("Refunds") }
                 else -> {
                     val acc = data.accounts.firstOrNull { a -> a.aliases.split(',').any { it.trim().fold() == tok } || a.name.fold().split(' ').first() == tok }
                     val cats = data.categories.filter { c -> c.name.fold().split(' ', '/').any { it.startsWith(tok) && tok.length >= 3 } || c.aliases.split(',').any { it.trim().fold() == tok } }

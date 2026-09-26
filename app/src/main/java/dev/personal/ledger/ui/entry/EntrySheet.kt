@@ -1,5 +1,6 @@
 package dev.personal.ledger.ui.entry
 
+import dev.personal.ledger.i18n.tr
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.tween
@@ -144,21 +145,21 @@ fun ColumnScope.EntrySheet(d: Dashboard, vm: LedgerViewModel, nav: Nav, req: Ent
         val label = when {
             recurring != null -> recurring.name
             plan != null -> plan.name
-            type == TxType.TRANSFER -> "Transfer"
-            else -> category?.name ?: preset?.label ?: "Transaction"
+            type == TxType.TRANSFER -> tr("Transfer")
+            else -> category?.name ?: preset?.label ?: tr("Transaction")
         }
         when {
             recurring != null && editing == null -> vm.payRecurring(recurring, amount, accountId!!, date)
             editing != null -> vm.updateTransaction(
                 editing.copy(type = type, amount = amount, accountId = accountId!!, toAccountId = if (type == TxType.TRANSFER) toAccountId else null,
                     categoryId = if (type == TxType.TRANSFER) null else categoryId, date = millis, note = note.trim()),
-                message = "Updated · ${Money.compact(amount)}",
+                message = tr("Updated · %s", Money.compact(amount)),
             )
             else -> vm.addTransaction(
                 Txn(type = type, amount = amount, accountId = accountId!!, toAccountId = if (type == TxType.TRANSFER) toAccountId else null,
                     categoryId = if (type == TxType.TRANSFER) null else categoryId, date = millis, note = note.trim(),
                     presetId = preset?.id, installmentId = plan?.id, linkedTxId = req.linkedTxId),
-                message = "$label · ${Money.compact(amount)} saved",
+                message = tr("%s · %s saved", label, Money.compact(amount)),
             )
         }
         nav.closeSheet()
@@ -168,19 +169,19 @@ fun ColumnScope.EntrySheet(d: Dashboard, vm: LedgerViewModel, nav: Nav, req: Ent
     val title = when {
         recurring != null -> recurring.name
         plan != null -> plan.name
-        card != null -> "Pay ${card.name}"
-        req.linkedTxId != null -> if (type == TxType.REFUND) "Refund" else "Paid back"
-        editing != null -> "Edit transaction"
-        type == TxType.TRANSFER -> "Transfer"
+        card != null -> tr("Pay %s", card.name)
+        req.linkedTxId != null -> if (type == TxType.REFUND) tr("Refund") else tr("Paid back")
+        editing != null -> tr("Edit transaction")
+        type == TxType.TRANSFER -> tr("Transfer")
         preset != null -> d.presetLabels[preset.id] ?: preset.label
-        else -> category?.name ?: "Choose a category"
+        else -> category?.name ?: tr("Choose a category")
     }
     val subtitle = when {
-        card != null -> "Settles card debt · not an expense"
-        type == TxType.TRANSFER -> "Not income or expense"
-        recurring != null && recurring.variable -> "Variable bill · usually ≈ ${Money.compact(recurring.amount)}"
-        plan != null -> "Installment payment"
-        type == TxType.REFUND || type == TxType.REIMBURSEMENT -> "Reduces ${category?.name ?: "spending"} · not income"
+        card != null -> tr("Settles card debt · not an expense")
+        type == TxType.TRANSFER -> tr("Not income or expense")
+        recurring != null && recurring.variable -> tr("Variable bill · usually ≈ %s", Money.compact(recurring.amount))
+        plan != null -> tr("Installment payment")
+        type == TxType.REFUND || type == TxType.REIMBURSEMENT -> tr("Reduces %s · not income", category?.name ?: tr("spending"))
         category != null && preset != null && category.name != title -> category.name
         else -> null
     }
@@ -196,20 +197,20 @@ fun ColumnScope.EntrySheet(d: Dashboard, vm: LedgerViewModel, nav: Nav, req: Ent
     if (req.composer && editing == null) {
         Row(Modifier.fillMaxWidth().padding(horizontal = Space.l), verticalAlignment = Alignment.CenterVertically) {
             Row(Modifier.weight(1f).clip(Shapes.chip).background(c.surfaceAlt).padding(3.dp)) {
-                listOf(TxType.EXPENSE to "Expense", TxType.INCOME to "Income", TxType.TRANSFER to "Transfer").forEach { (t, l) ->
+                listOf(TxType.EXPENSE to tr("Expense"), TxType.INCOME to tr("Income"), TxType.TRANSFER to tr("Transfer")).forEach { (t, l) ->
                     val sel = type == t && !commandMode
                     Box(
-                        Modifier.weight(1f).heightIn(min = 38.dp).clip(Shapes.chip).background(if (sel) c.surface else c.surfaceAlt)
+                        Modifier.weight(1f).heightIn(min = 38.dp).clip(Shapes.chip).background(if (sel) c.accent else c.surfaceAlt)
                             .clickable { commandMode = false; if (type != t) { type = t; categoryId = null; if (t == TxType.TRANSFER && toAccountId == null) toAccountId = accounts.firstOrNull { it.id != accountId && it.type != AccountType.CREDIT_CARD }?.id } },
                         contentAlignment = Alignment.Center,
-                    ) { Text(l, style = LedgerTheme.type.label, color = if (sel) c.text else c.textMuted) }
+                    ) { Text(l, style = LedgerTheme.type.label, color = if (sel) c.onAccent else c.textMuted) }
                 }
             }
             Spacer(Modifier.width(Space.s))
             Box(
                 Modifier.size(44.dp).clip(Shapes.chip).background(if (commandMode) c.accent else c.surfaceAlt).clickable { commandMode = !commandMode },
                 contentAlignment = Alignment.Center,
-            ) { Icon(if (commandMode) Icons.Rounded.Keyboard else Icons.Rounded.Terminal, "Command entry", tint = if (commandMode) c.onAccent else c.text, modifier = Modifier.size(20.dp)) }
+            ) { Icon(if (commandMode) Icons.Rounded.Keyboard else Icons.Rounded.Terminal, tr("Command entry"), tint = if (commandMode) c.onAccent else c.text, modifier = Modifier.size(20.dp)) }
         }
         Spacer(Modifier.height(Space.m))
     }
@@ -240,7 +241,7 @@ fun ColumnScope.EntrySheet(d: Dashboard, vm: LedgerViewModel, nav: Nav, req: Ent
         Text(" ${Money.symbol}", style = LedgerTheme.type.title, color = c.textMuted, modifier = Modifier.padding(bottom = 6.dp))
         Spacer(Modifier.weight(1f))
         if (recurring != null && editing == null) {
-            Chip("Skip this time") { vm.skipRecurring(recurring); nav.closeSheet() }
+            Chip(tr("Skip this time")) { vm.skipRecurring(recurring); nav.closeSheet() }
         }
     }
 
@@ -258,10 +259,10 @@ fun ColumnScope.EntrySheet(d: Dashboard, vm: LedgerViewModel, nav: Nav, req: Ent
             quick.forEach { a ->
                 val sel = amount == a
                 Box(
-                    Modifier.weight(1f).heightIn(min = 44.dp).clip(Shapes.chip).background(if (sel) c.accent else c.accentSoft)
+                    Modifier.weight(1f).heightIn(min = 44.dp).clip(Shapes.chip).background(if (sel) c.accent else c.surfaceAlt)
                         .clickable { digits = a.toString() },
                     contentAlignment = Alignment.Center,
-                ) { Text(formatAmount(a, AmountFormat.COMPACT, hidden = hidden), style = LedgerTheme.type.bodyStrong, color = if (sel) c.onAccent else c.accent) }
+                ) { Text(formatAmount(a, AmountFormat.COMPACT, hidden = hidden), style = LedgerTheme.type.bodyStrong, color = if (sel) c.onAccent else c.text) }
             }
         }
         Spacer(Modifier.height(Space.m))
@@ -274,15 +275,15 @@ fun ColumnScope.EntrySheet(d: Dashboard, vm: LedgerViewModel, nav: Nav, req: Ent
         Spacer(Modifier.height(Space.s))
     }
     if (hasSplits) {
-        Text("Split across ${data.splitsByTx[editing.id]!!.size} categories — edit lines from the transaction.", style = LedgerTheme.type.caption, color = c.textMuted,
+        Text(tr("Split across %d categories — edit the lines from the transaction.", data.splitsByTx[editing.id]!!.size), style = LedgerTheme.type.caption, color = c.textMuted,
             modifier = Modifier.padding(horizontal = Space.gutter, vertical = 4.dp))
     }
 
     // ---------- accounts ----------
     if (type == TxType.TRANSFER) {
-        AccountRow("From", accounts.filter { it.type != AccountType.CREDIT_CARD }, accountId, d.balances) { accountId = it }
+        AccountRow(tr("From"), accounts.filter { it.type != AccountType.CREDIT_CARD }, accountId, d.balances) { accountId = it }
         Spacer(Modifier.height(Space.s))
-        if (card == null) AccountRow("To", accounts.filter { it.id != accountId }, toAccountId, d.balances) { toAccountId = it }
+        if (card == null) AccountRow(tr("To"), accounts.filter { it.id != accountId }, toAccountId, d.balances) { toAccountId = it }
     } else {
         // Savings rarely pay for things directly; they stay reachable through transfers.
         AccountRow(null, accounts.filter { it.type != AccountType.SAVINGS || it.id == accountId }, accountId, d.balances) { accountId = it }
@@ -298,12 +299,12 @@ fun ColumnScope.EntrySheet(d: Dashboard, vm: LedgerViewModel, nav: Nav, req: Ent
                 Modifier.weight(1f).heightIn(min = 44.dp).clip(Shapes.chip).background(c.surfaceAlt).padding(horizontal = 14.dp, vertical = 12.dp).focusRequester(fr),
                 textStyle = LedgerTheme.type.body.copy(color = c.text), singleLine = true, cursorBrush = SolidColor(c.accent),
                 keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done), keyboardActions = KeyboardActions(onDone = { noteOpen = false }),
-                decorationBox = { inner -> Box { if (note.isEmpty()) Text("Note (optional)", style = LedgerTheme.type.body, color = c.textFaint); inner() } },
+                decorationBox = { inner -> Box { if (note.isEmpty()) Text(tr("Note (optional)"), style = LedgerTheme.type.body, color = c.textFaint); inner() } },
             )
             Spacer(Modifier.width(Space.s))
-            Chip("Done", selected = true) { noteOpen = false }
+            Chip(tr("Done"), selected = true) { noteOpen = false }
         } else {
-            Chip(if (note.isBlank()) "Add note" else note, icon = Icons.Rounded.EditNote, modifier = Modifier.weight(1f, fill = false)) { noteOpen = true }
+            Chip(if (note.isBlank()) tr("Add note") else note, icon = Icons.Rounded.EditNote, modifier = Modifier.weight(1f, fill = false)) { noteOpen = true }
         }
     }
 
@@ -314,7 +315,7 @@ fun ColumnScope.EntrySheet(d: Dashboard, vm: LedgerViewModel, nav: Nav, req: Ent
             onBackspace = { digits = digits.dropLast(1) },
             onClear = { digits = "" },
             saveEnabled = canSave,
-            saveLabel = when { recurring != null && editing == null -> "Pay"; card != null -> "Pay"; editing != null -> "Update"; else -> "Save" },
+            saveLabel = when { recurring != null && editing == null -> tr("Pay"); card != null -> tr("Pay"); editing != null -> tr("Update"); else -> tr("Save") },
             onSave = ::save,
             modifier = Modifier.padding(top = 4.dp, bottom = Space.l),
         )
@@ -344,9 +345,9 @@ private fun DateChip(date: LocalDate, onChange: (LocalDate) -> Unit) {
         DropdownMenu(menu, { menu = false }) {
             listOf(0L, 1L, 2L).forEach { n ->
                 val dd = today.minusDays(n)
-                DropdownMenuItem({ Text(if (n == 0L) "Today" else if (n == 1L) "Yesterday" else Fmt.relativeDay(dd, today)) }, { onChange(dd); menu = false })
+                DropdownMenuItem({ Text(if (n == 0L) tr("Today") else if (n == 1L) tr("Yesterday") else Fmt.relativeDay(dd, today)) }, { onChange(dd); menu = false })
             }
-            DropdownMenuItem({ Text("Pick a date…") }, { menu = false; picker = true })
+            DropdownMenuItem({ Text(tr("Pick a date…")) }, { menu = false; picker = true })
         }
     }
     if (picker) {
@@ -357,9 +358,9 @@ private fun DateChip(date: LocalDate, onChange: (LocalDate) -> Unit) {
                 TextButton({
                     state.selectedDateMillis?.let { onChange(Instant.ofEpochMilli(it).atZone(ZoneOffset.UTC).toLocalDate()) }
                     picker = false
-                }) { Text("OK") }
+                }) { Text(tr("OK")) }
             },
-            dismissButton = { TextButton({ picker = false }) { Text("Cancel") } },
+            dismissButton = { TextButton({ picker = false }) { Text(tr("Cancel")) } },
         ) { DatePicker(state) }
     }
 }
@@ -412,7 +413,7 @@ private fun CommandEntry(d: Dashboard, vm: LedgerViewModel, nav: Nav, defaultAcc
             Txn(type = p.type, amount = p.amount!!, accountId = p.account!!.id, toAccountId = p.toAccount?.id,
                 categoryId = if (p.type == TxType.TRANSFER) null else p.categoryId ?: p.preset?.categoryId,
                 date = date.atMillis(LocalTime.now()), note = p.note, presetId = p.preset?.id),
-            message = "${Money.compact(p.amount)} saved",
+            message = tr("%s saved", Money.compact(p.amount)),
         )
         nav.closeSheet()
     }
@@ -428,21 +429,21 @@ private fun CommandEntry(d: Dashboard, vm: LedgerViewModel, nav: Nav, defaultAcc
         if (parsed != null) {
             val cat = parsed.categoryId?.let { d.data.categoryById[it] }
             val parts = listOfNotNull(
-                when (parsed.type) { TxType.TRANSFER -> "Transfer"; TxType.INCOME -> "Income"; else -> "Expense" },
-                if (parsed.type != TxType.TRANSFER) cat?.name ?: "No category" else null,
-                parsed.amount?.let { Money.full(it) } ?: "No amount",
+                when (parsed.type) { TxType.TRANSFER -> tr("Transfer"); TxType.INCOME -> tr("Income"); else -> tr("Expense") },
+                if (parsed.type != TxType.TRANSFER) cat?.name ?: tr("No category") else null,
+                parsed.amount?.let { Money.full(it) } ?: tr("No amount"),
                 if (parsed.type == TxType.TRANSFER) "${parsed.account?.name ?: "?"} → ${parsed.toAccount?.name ?: "?"}" else parsed.account?.name,
-                if (parsed.daysAgo == 1) "Yesterday" else "Today",
+                if (parsed.daysAgo == 1) tr("Yesterday") else tr("Today"),
                 parsed.note.takeIf { it.isNotBlank() }?.let { "“$it”" },
             )
             Text(parts.joinToString("  ·  "), style = LedgerTheme.type.label, color = if (parsed.complete) c.text else c.textMuted)
             Spacer(Modifier.height(Space.m))
         } else {
-            Text("Amount, then a preset or category word. Add an account word (mb, vcb, vp) to change the account; start with “chuyển” for transfers or “+” for income.",
+            Text(tr("Amount, then a preset or category word. Add an account word (mb, vcb, vp) to change the account; start with “chuyển” for transfers or “+” for income."),
                 style = LedgerTheme.type.caption, color = c.textMuted)
             Spacer(Modifier.height(Space.m))
         }
-        PrimaryButton("Save", Modifier.fillMaxWidth(), enabled = parsed?.complete == true, icon = Icons.AutoMirrored.Rounded.ArrowForward) { save() }
+        PrimaryButton(tr("Save"), Modifier.fillMaxWidth(), enabled = parsed?.complete == true, icon = Icons.AutoMirrored.Rounded.ArrowForward) { save() }
         Spacer(Modifier.height(Space.l))
     }
 }

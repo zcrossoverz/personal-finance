@@ -16,6 +16,7 @@ import dev.personal.ledger.data.Split
 import dev.personal.ledger.data.TxType
 import dev.personal.ledger.data.Txn
 import dev.personal.ledger.data.Undo
+import dev.personal.ledger.i18n.tr
 import dev.personal.ledger.domain.Analytics
 import dev.personal.ledger.domain.Cards
 import dev.personal.ledger.domain.Ledger
@@ -73,6 +74,9 @@ class LedgerViewModel(app: Application) : AndroidViewModel(app) {
         .flowOn(Dispatchers.Default)
         .stateIn(viewModelScope, SharingStarted.Eagerly, null)
 
+    /** Navigation lives here so it survives the UI being rebuilt (e.g. after a language switch). */
+    val nav = Nav()
+
     private val _message = MutableStateFlow<UiMessage?>(null)
     val message = _message.asStateFlow()
     fun toast(text: String, undo: Undo? = null) { _message.value = UiMessage(text, undo) }
@@ -108,32 +112,32 @@ class LedgerViewModel(app: Application) : AndroidViewModel(app) {
         toast(message, undo)
     }
 
-    fun updateTransaction(t: Txn, splits: List<Split>? = null, message: String = "Saved") = viewModelScope.launch {
+    fun updateTransaction(t: Txn, splits: List<Split>? = null, message: String = tr("Saved")) = viewModelScope.launch {
         toast(message, repo.update(t, splits))
     }
 
     fun deleteTransaction(t: Txn) = viewModelScope.launch {
-        toast("Deleted ${Money.compact(t.amount)}", repo.delete(t))
+        toast(tr("Deleted %s", Money.compact(t.amount)), repo.delete(t))
     }
 
     fun duplicate(t: Txn) = viewModelScope.launch {
         val splits = repo.data.value?.splitsByTx?.get(t.id).orEmpty()
         val copy = t.copy(id = 0, date = System.currentTimeMillis(), createdAt = System.currentTimeMillis(), recurringId = null, installmentId = null)
         val (_, undo) = repo.add(copy, splits)
-        toast("Duplicated for today", undo)
+        toast(tr("Duplicated for today"), undo)
     }
 
     fun payRecurring(r: Recurring, amount: Long, accountId: Long, date: LocalDate) = viewModelScope.launch {
-        toast("${r.name} · ${Money.compact(amount)} recorded", repo.payRecurring(r, amount, accountId, date))
+        toast(tr("%s · %s recorded", r.name, Money.compact(amount)), repo.payRecurring(r, amount, accountId, date))
     }
 
-    fun skipRecurring(r: Recurring) = viewModelScope.launch { toast("Skipped ${r.name} this time", repo.skipRecurring(r)) }
+    fun skipRecurring(r: Recurring) = viewModelScope.launch { toast(tr("Skipped %s this time", r.name), repo.skipRecurring(r)) }
     fun saveRecurring(r: Recurring) = viewModelScope.launch { repo.saveRecurring(r) }
-    fun deleteRecurring(r: Recurring) = viewModelScope.launch { repo.deleteRecurring(r); toast("Removed ${r.name}") }
+    fun deleteRecurring(r: Recurring) = viewModelScope.launch { repo.deleteRecurring(r); toast(tr("Removed %s", r.name)) }
 
-    fun payInstallment(i: Installment) = viewModelScope.launch { toast("${i.name} payment recorded", repo.payInstallment(i)) }
+    fun payInstallment(i: Installment) = viewModelScope.launch { toast(tr("%s payment recorded", i.name), repo.payInstallment(i)) }
     fun saveInstallment(i: Installment) = viewModelScope.launch { repo.saveInstallment(i) }
-    fun deleteInstallment(i: Installment) = viewModelScope.launch { repo.deleteInstallment(i); toast("Removed ${i.name}") }
+    fun deleteInstallment(i: Installment) = viewModelScope.launch { repo.deleteInstallment(i); toast(tr("Removed %s", i.name)) }
 
     fun saveAccount(a: Account) = viewModelScope.launch { repo.saveAccount(a) }
     fun savePreset(p: Preset) = viewModelScope.launch { repo.savePreset(p) }
@@ -144,7 +148,7 @@ class LedgerViewModel(app: Application) : AndroidViewModel(app) {
 
     fun loadDemo() = viewModelScope.launch(Dispatchers.Default) {
         repo.replaceAll(DemoData.build())
-        repo.prefs.replace(DemoData.settings().copy(biometricLock = settings.value.biometricLock, theme = settings.value.theme))
+        repo.prefs.replace(DemoData.settings().copy(biometricLock = settings.value.biometricLock, theme = settings.value.theme, language = settings.value.language))
     }
 
     fun replaceAll(d: LedgerData, s: Settings) = viewModelScope.launch(Dispatchers.Default) {
@@ -157,7 +161,7 @@ class LedgerViewModel(app: Application) : AndroidViewModel(app) {
 
     /** Card payment = transfer into the card. Never an expense. */
     fun payCard(card: Account, from: Long, amount: Long) = addTransaction(
-        Txn(type = TxType.TRANSFER, amount = amount, accountId = from, toAccountId = card.id, date = System.currentTimeMillis(), note = "Thanh toán ${card.name}"),
-        message = "Paid ${Money.compact(amount)} to ${card.name}",
+        Txn(type = TxType.TRANSFER, amount = amount, accountId = from, toAccountId = card.id, date = System.currentTimeMillis(), note = tr("Card payment · %s", card.name)),
+        message = tr("Paid %s to %s", Money.compact(amount), card.name),
     )
 }

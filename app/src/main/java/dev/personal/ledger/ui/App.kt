@@ -29,6 +29,12 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Add
+import androidx.compose.material.icons.outlined.AccountBalanceWallet
+import androidx.compose.material.icons.outlined.CalendarMonth
+import androidx.compose.material.icons.outlined.Home
+import androidx.compose.material.icons.outlined.Insights
+import androidx.compose.ui.unit.sp
+import dev.personal.ledger.i18n.tr
 import androidx.compose.material.icons.rounded.AccountBalanceWallet
 import androidx.compose.material.icons.rounded.CalendarMonth
 import androidx.compose.material.icons.rounded.Home
@@ -107,7 +113,7 @@ class Nav {
 
 @Composable
 fun LedgerRoot(vm: LedgerViewModel, launch: MutableState<LaunchAction?>) {
-    val nav = remember { Nav() }
+    val nav = vm.nav
     val dash by vm.dashboard.collectAsStateWithLifecycle()
     val message by vm.message.collectAsStateWithLifecycle()
     val c = LedgerTheme.colors
@@ -207,35 +213,36 @@ private fun BottomBar(nav: Nav) {
     val view = LocalView.current
     Column(Modifier.fillMaxWidth().background(c.bg)) {
         Divider()
-        Row(Modifier.fillMaxWidth().navigationBarsPadding().height(64.dp).padding(horizontal = Space.s), verticalAlignment = Alignment.CenterVertically) {
-            val items: List<Pair<Tab, ImageVector>> = listOf(
-                Tab.HOME to Icons.Rounded.Home, Tab.MONEY to Icons.Rounded.AccountBalanceWallet,
-                Tab.PLAN to Icons.Rounded.CalendarMonth, Tab.INSIGHTS to Icons.Rounded.Insights,
+        Row(Modifier.fillMaxWidth().navigationBarsPadding().height(62.dp).padding(horizontal = Space.s), verticalAlignment = Alignment.CenterVertically) {
+            // Outlined when idle, filled when selected: state is carried by the glyph, not by a coloured pill.
+            val items: List<Triple<Tab, ImageVector, ImageVector>> = listOf(
+                Triple(Tab.HOME, Icons.Outlined.Home, Icons.Rounded.Home),
+                Triple(Tab.MONEY, Icons.Outlined.AccountBalanceWallet, Icons.Rounded.AccountBalanceWallet),
+                Triple(Tab.PLAN, Icons.Outlined.CalendarMonth, Icons.Rounded.CalendarMonth),
+                Triple(Tab.INSIGHTS, Icons.Outlined.Insights, Icons.Rounded.Insights),
             )
-            items.forEachIndexed { i, (t, icon) ->
+            items.forEachIndexed { i, (t, idle, active) ->
                 // Capture lives in the centre of the bar: always in thumb reach, never covering content.
                 if (i == 2) Box(Modifier.weight(1f), contentAlignment = Alignment.Center) {
                     Box(
-                        Modifier.size(52.dp, 44.dp).clip(RoundedTab).background(c.accent)
+                        Modifier.size(52.dp, 42.dp).clip(RoundedTab).background(c.accent)
                             .clickable(role = Role.Button) { Haptics.tick(view); nav.entry(EntryRequest(composer = true)) }
-                            .semantics { contentDescription = "New transaction" },
+                            .semantics { contentDescription = tr("New transaction") },
                         contentAlignment = Alignment.Center,
-                    ) { Icon(Icons.Rounded.Add, null, tint = c.onAccent, modifier = Modifier.size(26.dp)) }
+                    ) { Icon(Icons.Rounded.Add, null, tint = c.onAccent, modifier = Modifier.size(24.dp)) }
                 }
                 val sel = nav.tab == t
                 Column(
                     Modifier.weight(1f).height(56.dp).clip(RoundedTab).clickable(role = Role.Tab) { Haptics.tick(view); nav.select(t) },
                     horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = androidx.compose.foundation.layout.Arrangement.Center,
                 ) {
-                    Box(Modifier.size(56.dp, 30.dp).clip(CircleShape).background(if (sel) c.accentSoft else androidx.compose.ui.graphics.Color.Transparent), contentAlignment = Alignment.Center) {
-                        Icon(icon, null, tint = if (sel) c.accent else c.textMuted, modifier = Modifier.size(22.dp))
-                    }
-                    Spacer(Modifier.height(2.dp))
-                    Text(t.label, style = LedgerTheme.type.caption, color = if (sel) c.text else c.textMuted)
+                    Icon(if (sel) active else idle, null, tint = if (sel) c.text else c.textFaint, modifier = Modifier.size(23.dp))
+                    Spacer(Modifier.height(3.dp))
+                    Text(t.label, style = LedgerTheme.type.caption.copy(fontSize = 11.sp), color = if (sel) c.text else c.textFaint, maxLines = 1)
                 }
             }
         }
     }
 }
 
-private val RoundedTab = androidx.compose.foundation.shape.RoundedCornerShape(16.dp)
+private val RoundedTab = androidx.compose.foundation.shape.RoundedCornerShape(14.dp)

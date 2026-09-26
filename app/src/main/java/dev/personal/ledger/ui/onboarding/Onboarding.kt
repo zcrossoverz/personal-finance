@@ -1,5 +1,9 @@
 package dev.personal.ledger.ui.onboarding
 
+import androidx.compose.ui.unit.sp
+import dev.personal.ledger.i18n.Lang
+import dev.personal.ledger.i18n.I18n
+import dev.personal.ledger.i18n.tr
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.core.tween
@@ -74,23 +78,23 @@ private data class AccountDraft(val name: String, val type: AccountType, val ali
 
 /**
  * Four short steps, everything optional except having one account: currency → accounts → presets → pay day.
- * "Explore with demo data" is on the first screen for instant review.
+ * tr("Explore with demo data") is on the first screen for instant review.
  */
 @Composable
 fun Onboarding(vm: LedgerViewModel) {
     val c = LedgerTheme.colors
     var step by remember { mutableStateOf(0) }
     var currency by remember { mutableStateOf("VND") }
-    val suggestions = remember {
+    val suggestions = remember(I18n.lang) {
         listOf(
-            AccountDraft("Tiền mặt", AccountType.CASH, "cash,tm,tienmat", 1),
+            AccountDraft(tr("Cash"), AccountType.CASH, "cash,tm,tienmat", 1),
             AccountDraft("MB Bank", AccountType.BANK, "mb,mbbank", 2),
             AccountDraft("Vietcombank", AccountType.BANK, "vcb", 0),
             AccountDraft("Techcombank", AccountType.BANK, "tcb", 3),
             AccountDraft("MoMo", AccountType.EWALLET, "momo", 4),
             AccountDraft("ZaloPay", AccountType.EWALLET, "zalo,zalopay", 2),
-            AccountDraft("Credit card", AccountType.CREDIT_CARD, "card,the", 5),
-            AccountDraft("Savings", AccountType.SAVINGS, "tk,saving", 6),
+            AccountDraft(tr("Credit card"), AccountType.CREDIT_CARD, "card,the", 5),
+            AccountDraft(tr("Savings"), AccountType.SAVINGS, "tk,saving", 6),
         )
     }
     val chosen = remember { mutableStateListOf(0, 1) }
@@ -118,12 +122,12 @@ fun Onboarding(vm: LedgerViewModel) {
         val salary = if (day != null && default != null) {
             var next = YearMonth.from(today).dayClamped(day)
             if (!next.isAfter(today)) next = YearMonth.from(today).plusMonths(1).dayClamped(day)
-            listOf(Recurring(1, RecurringKind.INCOME, "Lương", Money.parse(salaryAmount) ?: 0, salaryAmount.isBlank(), Cadence.MONTHLY, next.toEpochDay(), day,
+            listOf(Recurring(1, RecurringKind.INCOME, tr("Salary"), Money.parse(salaryAmount) ?: 0, salaryAmount.isBlank(), Cadence.MONTHLY, next.toEpochDay(), day,
                 default.id, null, Seeds.SALARY, autoPay = salaryAmount.isNotBlank(), isSalary = true, icon = "salary"))
         } else emptyList()
         vm.replaceAll(
             LedgerData(accounts = accounts, categories = Seeds.categories, presets = Seeds.presets().map { it.copy(hidden = it.id !in presets) }, recurring = salary),
-            Settings(onboarded = true, currency = currency, defaultAccountId = default?.id),
+            Settings(onboarded = true, currency = currency, defaultAccountId = default?.id, language = I18n.lang.code),
         )
     }
 
@@ -133,15 +137,15 @@ fun Onboarding(vm: LedgerViewModel) {
             repeat(4) { i -> Box(Modifier.weight(1f).height(4.dp).clip(CircleShape).background(if (i < step) c.accent else c.surfaceAlt)) }
         }
         AnimatedContent(step, Modifier.weight(1f), transitionSpec = { (slideInHorizontally(tween(Motion.STANDARD)) { it / 5 } + fadeIn()) togetherWith fadeOut(tween(Motion.FAST)) }, label = "onb") { s ->
-            if (s == 0) Welcome(onStart = { step = 1 }, onDemo = { vm.loadDemo() })
+            if (s == 0) Welcome(vm, onStart = { step = 1 }, onDemo = { vm.loadDemo() })
             else Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState())) {
                 when (s) {
                     1 -> {
-                        Title("Currency", "Amounts are stored in whole units of this currency.")
+                        Title(tr("Currency"), tr("Amounts are stored in whole units of this currency."))
                         ChoiceRow(listOf("VND", "USD", "EUR", "JPY", "KRW", "THB"), currency, { it }) { currency = it }
                     }
                     2 -> {
-                        Title("Where is your money?", "Pick what you use. Balances are optional — you can adjust later.")
+                        Title(tr("Where is your money?"), tr("Pick what you use. Balances are optional — you can adjust later."))
                         suggestions.forEachIndexed { i, a ->
                             val on = i in chosen
                             Column(Modifier.fillMaxWidth().padding(horizontal = Space.l, vertical = 4.dp).clip(Shapes.card)
@@ -155,13 +159,13 @@ fun Onboarding(vm: LedgerViewModel) {
                                     }
                                 }
                                 if (on) Box(Modifier.padding(bottom = Space.m)) {
-                                    AmountInput(balances[i] ?: "", { balances[i] = it }, placeholder = if (a.type == AccountType.CREDIT_CARD) "Current debt (optional)" else "Balance (optional)")
+                                    AmountInput(balances[i] ?: "", { balances[i] = it }, placeholder = if (a.type == AccountType.CREDIT_CARD) tr("Current debt (optional)") else tr("Balance (optional)"), helper = "")
                                 }
                             }
                         }
                     }
                     3 -> {
-                        Title("Quick presets", "One tap from Home. You can pin, reorder and add more any time.")
+                        Title(tr("Quick presets"), tr("One tap from Home. You can pin, reorder and add more any time."))
                         Seeds.presets().chunked(3).forEach { row ->
                             Row(Modifier.padding(horizontal = Space.l), horizontalArrangement = Arrangement.spacedBy(Space.s)) {
                                 row.forEach { p ->
@@ -181,19 +185,19 @@ fun Onboarding(vm: LedgerViewModel) {
                         }
                     }
                     4 -> {
-                        Title("Pay day (optional)", "Lets “safe to spend” count down to your next salary.")
-                        FieldLabel("Day of month")
+                        Title(tr("Pay day (optional)"), tr("Lets “safe to spend” count down to your next salary."))
+                        FieldLabel(tr("Day of month"))
                         TextInput(salaryDay, { salaryDay = it.filter(Char::isDigit).take(2) }, "10", keyboard = KeyboardType.Number)
-                        FieldLabel("Usual amount (optional)")
+                        FieldLabel(tr("Usual amount (optional)"))
                         AmountInput(salaryAmount, { salaryAmount = it })
                     }
                 }
             }
         }
         if (step > 0) Row(Modifier.fillMaxWidth().padding(Space.l), verticalAlignment = Alignment.CenterVertically) {
-            if (step == 4) Text("Skip", style = LedgerTheme.type.bodyStrong, color = c.textMuted, modifier = Modifier.clip(Shapes.pill).clickable { salaryDay = ""; finish() }.padding(16.dp))
+            if (step == 4) Text(tr("Skip"), style = LedgerTheme.type.bodyStrong, color = c.textMuted, modifier = Modifier.clip(Shapes.pill).clickable { salaryDay = ""; finish() }.padding(16.dp))
             Spacer(Modifier.weight(1f))
-            PrimaryButton(if (step == 4) "Done" else "Continue", enabled = step != 2 || chosen.isNotEmpty()) { if (step == 4) finish() else step++ }
+            PrimaryButton(if (step == 4) tr("Done") else tr("Continue"), enabled = step != 2 || chosen.isNotEmpty()) { if (step == 4) finish() else step++ }
         }
     }
 }
@@ -209,22 +213,28 @@ private fun Title(title: String, sub: String) {
 }
 
 @Composable
-private fun Welcome(onStart: () -> Unit, onDemo: () -> Unit) {
+private fun Welcome(vm: LedgerViewModel, onStart: () -> Unit, onDemo: () -> Unit) {
     val c = LedgerTheme.colors
-    Column(Modifier.fillMaxSize().padding(horizontal = Space.xxl).padding(top = 72.dp, bottom = Space.l)) {
+    // Language switch is available before anything else; Vietnamese is the default.
+    Box(Modifier.fillMaxWidth().padding(end = Space.l, top = Space.s), contentAlignment = Alignment.TopEnd) {
+        val other = if (I18n.vi) Lang.EN else Lang.VI
+        Text(other.label, style = LedgerTheme.type.label, color = c.textMuted,
+            modifier = Modifier.clip(Shapes.pill).clickable { vm.updateSettings { it.copy(language = other.code) } }.padding(horizontal = 14.dp, vertical = 10.dp))
+    }
+    Column(Modifier.fillMaxSize().padding(horizontal = Space.xxl).padding(top = 28.dp, bottom = Space.l)) {
         Box(Modifier.size(64.dp).clip(Shapes.tile).background(c.accent), contentAlignment = Alignment.Center) {
             Column(verticalArrangement = Arrangement.spacedBy(5.dp)) {
                 listOf(22.dp, 32.dp, 14.dp).forEach { w -> Box(Modifier.width(w).height(5.dp).clip(CircleShape).background(c.onAccent)) }
             }
         }
         Spacer(Modifier.height(Space.xxl))
-        Text("Know where your\nmoney is. Always.", style = LedgerTheme.type.display, color = c.text)
+        Text(tr("Know where your\nmoney is. Always."), style = LedgerTheme.type.display.copy(fontSize = 32.sp, lineHeight = 40.sp), color = c.text)
         Spacer(Modifier.height(Space.l))
         listOf(
-            "Log an expense in three taps: preset, amount, save.",
-            "See what's safe to spend before your next salary.",
-            "Every bill, card due and installment on one timeline.",
-            "Private: stored only on this phone, exportable anytime.",
+            tr("Log an expense in three taps: preset, amount, save."),
+            tr("See what's safe to spend before your next salary."),
+            tr("Every bill, card due and installment on one timeline."),
+            tr("Private: stored only on this phone, exportable anytime."),
         ).forEach { line ->
             Row(Modifier.padding(vertical = 6.dp)) {
                 Box(Modifier.padding(top = 8.dp).size(6.dp).clip(CircleShape).background(c.accent))
@@ -233,9 +243,9 @@ private fun Welcome(onStart: () -> Unit, onDemo: () -> Unit) {
             }
         }
         Spacer(Modifier.weight(1f))
-        PrimaryButton("Get started", Modifier.fillMaxWidth(), onClick = onStart)
+        PrimaryButton(tr("Get started"), Modifier.fillMaxWidth(), onClick = onStart)
         Spacer(Modifier.height(Space.m))
-        Text("Explore with demo data", style = LedgerTheme.type.bodyStrong, color = c.accent,
+        Text(tr("Explore with demo data"), style = LedgerTheme.type.bodyStrong, color = c.textMuted,
             modifier = Modifier.fillMaxWidth().clip(Shapes.pill).clickable(onClick = onDemo).heightIn(min = 48.dp).padding(14.dp),
             textAlign = androidx.compose.ui.text.style.TextAlign.Center)
     }

@@ -1,11 +1,16 @@
 package dev.personal.ledger.ui
 
 import dev.personal.ledger.data.RecurringKind
+import dev.personal.ledger.i18n.tr
 import dev.personal.ledger.data.TxType
 import java.time.LocalDate
 import java.time.YearMonth
 
-enum class Tab(val label: String) { HOME("Home"), MONEY("Money"), PLAN("Plan"), INSIGHTS("Insights") }
+enum class Tab {
+    HOME, MONEY, PLAN, INSIGHTS;
+
+    val label: String get() = when (this) { HOME -> tr("Home"); MONEY -> tr("Money"); PLAN -> tr("Plan"); INSIGHTS -> tr("Insights") }
+}
 
 /** Screens pushed on top of a tab. */
 sealed interface Route {

@@ -1,5 +1,6 @@
 package dev.personal.ledger.ui.entry
 
+import dev.personal.ledger.i18n.tr
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -76,7 +77,7 @@ import dev.personal.ledger.ui.theme.Space
 @Composable
 fun ColumnScope.TxDetailSheet(d: Dashboard, vm: LedgerViewModel, nav: Nav, id: Long) {
     val c = LedgerTheme.colors
-    val t = d.data.txById[id] ?: run { Text("This transaction no longer exists.", Modifier.padding(Space.xxl), color = c.textMuted); return }
+    val t = d.data.txById[id] ?: run { Text(tr("This transaction no longer exists."), Modifier.padding(Space.xxl), color = c.textMuted); return }
     val v = txVisual(t, d.data)
     val splits = d.data.splitsByTx[t.id]
     val linked = t.linkedTxId?.let { d.data.txById[it] }
@@ -97,20 +98,20 @@ fun ColumnScope.TxDetailSheet(d: Dashboard, vm: LedgerViewModel, nav: Nav, id: L
         Spacer(Modifier.height(Space.m))
 
         val rows = buildList {
-            add("Type" to when (t.type) {
-                TxType.EXPENSE -> "Expense"; TxType.INCOME -> "Income"; TxType.TRANSFER -> "Transfer · not income or expense"
-                TxType.REFUND -> "Refund · offsets spending"; TxType.REIMBURSEMENT -> "Paid back · offsets spending"; TxType.ADJUSTMENT -> "Adjustment"
+            add(tr("Type") to when (t.type) {
+                TxType.EXPENSE -> tr("Expense"); TxType.INCOME -> tr("Income"); TxType.TRANSFER -> tr("Transfer · not income or expense")
+                TxType.REFUND -> tr("Refund · offsets spending"); TxType.REIMBURSEMENT -> tr("Paid back · offsets spending"); TxType.ADJUSTMENT -> tr("Adjustment")
             })
-            if (t.type == TxType.TRANSFER) add("From → To" to "${d.data.accountById[t.accountId]?.name} → ${d.data.accountById[t.toAccountId]?.name}")
-            else add("Account" to (d.data.accountById[t.accountId]?.name ?: "—"))
+            if (t.type == TxType.TRANSFER) add(tr("From → To") to "${d.data.accountById[t.accountId]?.name} → ${d.data.accountById[t.toAccountId]?.name}")
+            else add(tr("Account") to (d.data.accountById[t.accountId]?.name ?: "—"))
             if (splits == null && t.type != TxType.TRANSFER) d.data.categoryById[t.categoryId]?.let { cat ->
-                add("Category" to (cat.parentId?.let { p -> "${d.data.categoryById[p]?.name} › " } ?: "") + cat.name)
+                add(tr("Category") to (cat.parentId?.let { p -> "${d.data.categoryById[p]?.name} › " } ?: "") + cat.name)
             }
-            if (t.note.isNotBlank()) add("Note" to t.note)
-            t.recurringId?.let { rid -> d.data.recurring.firstOrNull { it.id == rid }?.let { add("Schedule" to it.name) } }
-            t.installmentId?.let { iid -> d.data.installments.firstOrNull { it.id == iid }?.let { add("Installment" to it.name) } }
-            linked?.let { add("Offsets" to "${txVisual(it, d.data).title} · ${Money.compact(it.amount)}") }
-            if (offsets.isNotEmpty()) add("Offset by" to offsets.joinToString { "${Money.compact(it.amount)} ${if (it.type == TxType.REFUND) "refund" else "paid back"}" })
+            if (t.note.isNotBlank()) add(tr("Note") to t.note)
+            t.recurringId?.let { rid -> d.data.recurring.firstOrNull { it.id == rid }?.let { add(tr("Schedule") to it.name) } }
+            t.installmentId?.let { iid -> d.data.installments.firstOrNull { it.id == iid }?.let { add(tr("Installment") to it.name) } }
+            linked?.let { add(tr("Offsets") to "${txVisual(it, d.data).title} · ${Money.compact(it.amount)}") }
+            if (offsets.isNotEmpty()) add(tr("Offset by") to offsets.joinToString { if (it.type == TxType.REFUND) tr("%s refunded", Money.compact(it.amount)) else tr("%s paid back", Money.compact(it.amount)) })
         }
         Column(Modifier.padding(horizontal = Space.l).clip(Shapes.card).background(c.surfaceAlt)) {
             rows.forEachIndexed { i, (k, value) ->
@@ -123,7 +124,7 @@ fun ColumnScope.TxDetailSheet(d: Dashboard, vm: LedgerViewModel, nav: Nav, id: L
         }
         if (splits != null) {
             Spacer(Modifier.height(Space.m))
-            Text("SPLIT", style = LedgerTheme.type.overline, color = c.textMuted, modifier = Modifier.padding(horizontal = Space.gutter, vertical = 6.dp))
+            Text(tr("Split lines"), style = LedgerTheme.type.section, color = c.textMuted, modifier = Modifier.padding(horizontal = Space.gutter, vertical = 6.dp))
             splits.forEach { s ->
                 val cat = d.data.categoryById[s.categoryId]
                 Row(Modifier.fillMaxWidth().padding(horizontal = Space.gutter, vertical = 6.dp), verticalAlignment = Alignment.CenterVertically) {
@@ -137,24 +138,25 @@ fun ColumnScope.TxDetailSheet(d: Dashboard, vm: LedgerViewModel, nav: Nav, id: L
         Spacer(Modifier.height(Space.l))
 
         val isExpense = t.type == TxType.EXPENSE
+        val deleteLabel = tr("Delete")
         val actions = buildList {
-            add(Triple(Icons.Rounded.Edit, "Edit") { nav.entry(EntryRequest(editTxId = t.id)) })
-            add(Triple(Icons.Rounded.ContentCopy, "Duplicate") { vm.duplicate(t); nav.closeSheet() })
+            add(Triple(Icons.Rounded.Edit, tr("Edit")) { nav.entry(EntryRequest(editTxId = t.id)) })
+            add(Triple(Icons.Rounded.ContentCopy, tr("Duplicate")) { vm.duplicate(t); nav.closeSheet() })
             if (isExpense) {
-                add(Triple(Icons.AutoMirrored.Rounded.CallSplit, "Split") { nav.open(SheetRequest.Split(t.id)) })
-                add(Triple(Icons.AutoMirrored.Rounded.Undo, "Refund") {
-                    nav.entry(EntryRequest(type = TxType.REFUND, categoryId = t.categoryId, accountId = t.accountId, amount = t.amount - offsets.sumOf { it.amount }, linkedTxId = t.id, note = "Refund · ${v.title}"))
+                add(Triple(Icons.AutoMirrored.Rounded.CallSplit, tr("Split")) { nav.open(SheetRequest.Split(t.id)) })
+                add(Triple(Icons.AutoMirrored.Rounded.Undo, tr("Refund")) {
+                    nav.entry(EntryRequest(type = TxType.REFUND, categoryId = t.categoryId, accountId = t.accountId, amount = t.amount - offsets.sumOf { it.amount }, linkedTxId = t.id, note = tr("Refund · %s", v.title)))
                 })
-                add(Triple(Icons.Rounded.Groups, "Paid back") {
+                add(Triple(Icons.Rounded.Groups, tr("Paid back")) {
                     nav.entry(EntryRequest(type = TxType.REIMBURSEMENT, categoryId = t.categoryId, accountId = d.data.accounts.firstOrNull { it.type == dev.personal.ledger.data.AccountType.BANK }?.id ?: t.accountId,
-                        amount = 0, linkedTxId = t.id, note = "Paid back · ${v.title}"))
+                        amount = 0, linkedTxId = t.id, note = tr("Paid back · %s", v.title)))
                 })
             }
-            add(Triple(Icons.Rounded.DeleteOutline, "Delete") { vm.deleteTransaction(t); nav.closeSheet() })
+            add(Triple(Icons.Rounded.DeleteOutline, deleteLabel) { vm.deleteTransaction(t); nav.closeSheet() })
         }
         actions.chunked(3).forEach { row ->
             Row(Modifier.fillMaxWidth().padding(horizontal = Space.l), horizontalArrangement = Arrangement.spacedBy(Space.s)) {
-                row.forEach { (icon, label, action) -> ActionTile(icon, label, if (label == "Delete") c.negative else c.text, Modifier.weight(1f), action) }
+                row.forEach { (icon, label, action) -> ActionTile(icon, label, if (label == deleteLabel) c.negative else c.text, Modifier.weight(1f), action) }
                 repeat(3 - row.size) { Spacer(Modifier.weight(1f)) }
             }
             Spacer(Modifier.height(Space.s))
@@ -197,15 +199,15 @@ fun ColumnScope.SplitSheet(d: Dashboard, vm: LedgerViewModel, nav: Nav, txId: Lo
     Column(Modifier.verticalScroll(rememberScrollState()).padding(bottom = Space.l)) {
         Row(Modifier.padding(horizontal = Space.gutter), verticalAlignment = Alignment.CenterVertically) {
             Column(Modifier.weight(1f)) {
-                Text("Split transaction", style = LedgerTheme.type.headline, color = c.text)
-                Text("${Money.full(t.amount)} · analytics use these lines", style = LedgerTheme.type.caption, color = c.textMuted)
+                Text(tr("Split transaction"), style = LedgerTheme.type.headline, color = c.text)
+                Text(tr("%s · analytics use these lines", Money.full(t.amount)), style = LedgerTheme.type.caption, color = c.textMuted)
             }
         }
         Spacer(Modifier.height(Space.m))
         lines.forEachIndexed { i, line ->
             val cat = line.categoryId?.let { d.data.categoryById[it] }
             Row(Modifier.fillMaxWidth().padding(horizontal = Space.l, vertical = 4.dp), verticalAlignment = Alignment.CenterVertically) {
-                Chip(cat?.name ?: "Category", selected = picking == i, icon = LedgerIcons.of(cat?.icon), modifier = Modifier.weight(1f)) { picking = if (picking == i) null else i }
+                Chip(cat?.name ?: tr("Category"), selected = picking == i, icon = LedgerIcons.of(cat?.icon), modifier = Modifier.weight(1f)) { picking = if (picking == i) null else i }
                 Spacer(Modifier.width(Space.s))
                 BasicTextField(
                     line.amount, { v -> lines[i] = line.copy(amount = v.filter { it.isDigit() }.take(12)) },
@@ -214,7 +216,7 @@ fun ColumnScope.SplitSheet(d: Dashboard, vm: LedgerViewModel, nav: Nav, txId: Lo
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                 )
                 if (lines.size > 2) Box(Modifier.size(40.dp).clip(Shapes.chip).clickable { lines.removeAt(i); picking = null }, contentAlignment = Alignment.Center) {
-                    Icon(Icons.Rounded.Close, "Remove line", tint = c.textMuted, modifier = Modifier.size(18.dp))
+                    Icon(Icons.Rounded.Close, tr("Remove line"), tint = c.textMuted, modifier = Modifier.size(18.dp))
                 }
             }
             if (picking == i) {
@@ -224,25 +226,25 @@ fun ColumnScope.SplitSheet(d: Dashboard, vm: LedgerViewModel, nav: Nav, txId: Lo
             }
         }
         Row(Modifier.fillMaxWidth().padding(horizontal = Space.l, vertical = Space.s), verticalAlignment = Alignment.CenterVertically) {
-            Chip("Add line", icon = Icons.Rounded.Add) { lines.add(Line(null, remaining.coerceAtLeast(0).takeIf { it > 0 }?.toString() ?: "", "")) }
+            Chip(tr("Add line"), icon = Icons.Rounded.Add) { lines.add(Line(null, remaining.coerceAtLeast(0).takeIf { it > 0 }?.toString() ?: "", "")) }
             Spacer(Modifier.weight(1f))
             Text(
-                if (remaining == 0L) "Fully assigned" else if (remaining > 0) "${Money.compact(remaining)} unassigned" else "${Money.compact(-remaining)} over",
+                if (remaining == 0L) tr("Fully assigned") else if (remaining > 0) tr("%s unassigned", Money.compact(remaining)) else tr("%s over", Money.compact(-remaining)),
                 style = LedgerTheme.type.label, color = if (remaining == 0L) c.positive else c.caution,
             )
         }
         Spacer(Modifier.height(Space.m))
         Row(Modifier.padding(horizontal = Space.l)) {
             if (d.data.splitsByTx[txId] != null) {
-                Chip("Remove split") {
+                Chip(tr("Remove split")) {
                     // The largest line's category becomes the transaction's category again.
                     val main = d.data.splitsByTx[txId]?.maxByOrNull { it.amount }?.categoryId
-                    vm.updateTransaction(t.copy(categoryId = main), emptyList(), "Split removed"); nav.closeSheet()
+                    vm.updateTransaction(t.copy(categoryId = main), emptyList(), tr("Split removed")); nav.closeSheet()
                 }
                 Spacer(Modifier.width(Space.s))
             }
-            PrimaryButton("Save split", Modifier.weight(1f), enabled = valid) {
-                vm.updateTransaction(t.copy(categoryId = null), lines.map { Split(txId = txId, categoryId = it.categoryId!!, amount = it.amount.toLong(), note = it.note) }, "Split saved")
+            PrimaryButton(tr("Save split"), Modifier.weight(1f), enabled = valid) {
+                vm.updateTransaction(t.copy(categoryId = null), lines.map { Split(txId = txId, categoryId = it.categoryId!!, amount = it.amount.toLong(), note = it.note) }, tr("Split saved"))
                 nav.closeSheet()
             }
         }

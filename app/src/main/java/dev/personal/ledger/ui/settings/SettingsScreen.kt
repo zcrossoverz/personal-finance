@@ -1,5 +1,7 @@
 package dev.personal.ledger.ui.settings
 
+import dev.personal.ledger.i18n.Lang
+import dev.personal.ledger.i18n.tr
 import android.Manifest
 import android.os.Build
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -66,25 +68,25 @@ fun SettingsScreen(d: Dashboard, vm: LedgerViewModel, nav: Nav) {
     val exportJson = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("application/json")) { uri ->
         if (uri != null) vm.run {
             withContext(Dispatchers.IO) { ctx.contentResolver.openOutputStream(uri)?.use { it.write(Backup.encode(vm.settings.value, d.data).toByteArray()) } }
-            vm.toast("Backup saved")
+            vm.toast(tr("Backup saved"))
         }
     }
     val exportCsv = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("text/csv")) { uri ->
         if (uri != null) vm.run {
             withContext(Dispatchers.IO) { ctx.contentResolver.openOutputStream(uri)?.use { it.write(Backup.csv(d.data).toByteArray()) } }
-            vm.toast("CSV exported")
+            vm.toast(tr("CSV exported"))
         }
     }
     val restore = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
         if (uri != null) vm.run {
             val result = withContext(Dispatchers.IO) { runCatching { Backup.decode(ctx.contentResolver.openInputStream(uri)!!.bufferedReader().readText()) } }
             result.onSuccess { f -> pendingRestore = f.data to f.settings }
-                .onFailure { vm.toast("Couldn't read that file: ${it.message ?: "invalid backup"}") }
+                .onFailure { vm.toast(tr("Couldn't read that file: %s", it.message ?: tr("invalid backup"))) }
         }
     }
     val notifPermission = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
         vm.updateSettings { it.copy(remindersEnabled = granted) }
-        if (!granted) vm.toast("Reminders need notification permission")
+        if (!granted) vm.toast(tr("Reminders need notification permission"))
     }
     val biometricAvailable = remember {
         BiometricManager.from(ctx).canAuthenticate(BiometricManager.Authenticators.BIOMETRIC_WEAK or BiometricManager.Authenticators.DEVICE_CREDENTIAL) == BiometricManager.BIOMETRIC_SUCCESS
@@ -92,64 +94,66 @@ fun SettingsScreen(d: Dashboard, vm: LedgerViewModel, nav: Nav) {
     val salary = d.data.recurring.firstOrNull { it.isSalary && it.active }
     val accounts = d.data.accounts.filter { !it.archived }
 
-    Screen("Settings", onBack = { nav.pop() }) {
+    Screen(tr("Settings"), onBack = { nav.pop() }) {
         item {
-            SectionHeader("Safe to spend")
-            NavRow("Salary", salary?.let { "${Money.compact(it.amount)} · next ${Fmt.dayMonth(it.nextDue.epochDayToDate())}" } ?: "Not set — add it so safe-to-spend knows your pay day") {
+            SectionHeader(tr("Safe to spend"))
+            NavRow(tr("Salary"), salary?.let { tr("%s · next %s", Money.compact(it.amount), Fmt.dayMonth(it.nextDue.epochDayToDate())) } ?: tr("Not set — add it so safe-to-spend knows your pay day")) {
                 nav.push(Route.EditRecurring(salary?.id, RecurringKind.INCOME))
             }
-            FieldLabel("Protected savings (kept in everyday accounts)")
+            FieldLabel(tr("Protected savings (kept in everyday accounts)"))
             MoneySetting(s.protectedSavings) { v -> vm.updateSettings { it.copy(protectedSavings = v) } }
-            FieldLabel("Emergency reserve")
+            FieldLabel(tr("Emergency reserve"))
             MoneySetting(s.emergencyReserve) { v -> vm.updateSettings { it.copy(emergencyReserve = v) } }
-            FieldLabel("Monthly flexible budget (optional)")
-            MoneySetting(s.flexibleBudget ?: 0, helper = "Blank = compare pace with your 3-month average") { v -> vm.updateSettings { it.copy(flexibleBudget = v.takeIf { x -> x > 0 }) } }
-            ToggleRow("Forecast includes everyday spending", s.forecastIncludesEstimate, "Shown dashed and labelled as an estimate") { v -> vm.updateSettings { it.copy(forecastIncludesEstimate = v) } }
-            NavRow("Bills & recurring", "${d.data.recurring.count { it.active && it.kind == RecurringKind.BILL }} bills") { nav.push(Route.RecurringList(RecurringKind.BILL)) }
+            FieldLabel(tr("Monthly flexible budget (optional)"))
+            MoneySetting(s.flexibleBudget ?: 0, helper = tr("Blank = compare pace with your 3-month average")) { v -> vm.updateSettings { it.copy(flexibleBudget = v.takeIf { x -> x > 0 }) } }
+            ToggleRow(tr("Forecast includes everyday spending"), s.forecastIncludesEstimate, tr("Shown dashed and labelled as an estimate")) { v -> vm.updateSettings { it.copy(forecastIncludesEstimate = v) } }
+            NavRow(tr("Bills & recurring"), tr("%d bills", d.data.recurring.count { it.active && it.kind == RecurringKind.BILL })) { nav.push(Route.RecurringList(RecurringKind.BILL)) }
         }
         item {
-            SectionHeader("Capture", Modifier.padding(top = Space.m))
-            NavRow("Quick presets", "${d.data.presets.count { !it.hidden }} visible · pin, reorder, hide, create") { nav.push(Route.Presets) }
-            FieldLabel("Default account")
+            SectionHeader(tr("Capture"), Modifier.padding(top = Space.m))
+            NavRow(tr("Quick presets"), tr("%d visible · pin, reorder, hide, create", d.data.presets.count { !it.hidden })) { nav.push(Route.Presets) }
+            FieldLabel(tr("Default account"))
             AccountChoice(accounts, s.defaultAccountId) { id -> vm.updateSettings { it.copy(defaultAccountId = id) } }
             Spacer(Modifier.height(Space.s))
-            NavRow("Add account", "Bank, cash, e-wallet, savings or credit card") { nav.push(Route.EditAccount(null)) }
+            NavRow(tr("Add account"), tr("Bank, cash, e-wallet, savings or credit card")) { nav.push(Route.EditAccount(null)) }
         }
         item {
-            SectionHeader("Privacy & security", Modifier.padding(top = Space.m))
-            ToggleRow("App lock", s.biometricLock, if (biometricAvailable) "Fingerprint, face or screen lock after 1 minute away" else "Set up a screen lock on this device first") { v ->
+            SectionHeader(tr("Privacy & security"), Modifier.padding(top = Space.m))
+            ToggleRow(tr("App lock"), s.biometricLock, if (biometricAvailable) tr("Fingerprint, face or screen lock after 1 minute away") else tr("Set up a screen lock on this device first")) { v ->
                 if (biometricAvailable) vm.updateSettings { it.copy(biometricLock = v) }
             }
-            ToggleRow("Hide amounts", s.hideAmounts, "Show ••• instead of numbers (also the eye on Home)") { v -> vm.updateSettings { it.copy(hideAmounts = v) } }
-            ToggleRow("Protect screen", s.secureScreen, "Block screenshots and blur the app in recent apps") { v -> vm.updateSettings { it.copy(secureScreen = v) } }
-            ToggleRow("Due-date reminders", s.remindersEnabled && Reminders.canNotify(ctx),
-                if (s.remindersEnabled && !Reminders.canNotify(ctx)) "Notifications are blocked — tap to allow" else "Variable bills and card payments, once a day") { v ->
+            ToggleRow(tr("Hide amounts"), s.hideAmounts, tr("Show ••• instead of numbers (also the eye on Home)")) { v -> vm.updateSettings { it.copy(hideAmounts = v) } }
+            ToggleRow(tr("Protect screen"), s.secureScreen, tr("Block screenshots and blur the app in recent apps")) { v -> vm.updateSettings { it.copy(secureScreen = v) } }
+            ToggleRow(tr("Due-date reminders"), s.remindersEnabled && Reminders.canNotify(ctx),
+                if (s.remindersEnabled && !Reminders.canNotify(ctx)) tr("Notifications are blocked — tap to allow") else tr("Variable bills and card payments, once a day")) { v ->
                 if (v && Build.VERSION.SDK_INT >= 33 && !Reminders.canNotify(ctx)) notifPermission.launch(Manifest.permission.POST_NOTIFICATIONS)
                 else vm.updateSettings { it.copy(remindersEnabled = v) }
             }
         }
         item {
-            SectionHeader("Appearance", Modifier.padding(top = Space.m))
-            ChoiceRow(listOf("system", "light", "dark"), s.theme, { it.replaceFirstChar { ch -> ch.uppercase() } }) { t -> vm.updateSettings { it.copy(theme = t) } }
+            SectionHeader(tr("Language & appearance"), Modifier.padding(top = Space.m))
+            ChoiceRow(Lang.entries, Lang.of(s.language), { it.label }) { l -> vm.updateSettings { it.copy(language = l.code) } }
+            Spacer(Modifier.height(Space.s))
+            ChoiceRow(listOf("system", "light", "dark"), s.theme, { when (it) { "light" -> tr("Light"); "dark" -> tr("Dark"); else -> tr("System") } }) { t -> vm.updateSettings { it.copy(theme = t) } }
             Spacer(Modifier.height(Space.s))
         }
         item {
-            SectionHeader("Your data", Modifier.padding(top = Space.m))
-            Text("Everything is stored only on this phone. Nothing is sent anywhere unless you export it.", style = LedgerTheme.type.caption, color = c.textMuted,
+            SectionHeader(tr("Your data"), Modifier.padding(top = Space.m))
+            Text(tr("Everything is stored only on this phone. Nothing is sent anywhere unless you export it."), style = LedgerTheme.type.caption, color = c.textMuted,
                 modifier = Modifier.padding(horizontal = Space.gutter, vertical = 4.dp))
-            NavRow("Export backup", "Complete JSON file — restore it on any phone") { exportJson.launch("ledger-backup-${LocalDate.now()}.json") }
-            NavRow("Export CSV", "Transactions for spreadsheets") { exportCsv.launch("ledger-transactions-${LocalDate.now()}.csv") }
-            NavRow("Restore from backup", "Replaces everything on this phone") { restore.launch(arrayOf("application/json", "*/*")) }
-            NavRow("Load demo data", "Replace your data with a realistic sample for exploring") {
-                confirm = "Replace all data on this phone with demo data? Export a backup first if you want to keep it." to { vm.loadDemo() }
+            NavRow(tr("Export backup"), tr("Complete JSON file — restore it on any phone")) { exportJson.launch("ledger-backup-${LocalDate.now()}.json") }
+            NavRow(tr("Export CSV"), tr("Transactions for spreadsheets")) { exportCsv.launch("ledger-transactions-${LocalDate.now()}.csv") }
+            NavRow(tr("Restore from backup"), tr("Replaces everything on this phone")) { restore.launch(arrayOf("application/json", "*/*")) }
+            NavRow(tr("Load demo data"), tr("Replace your data with a realistic sample for exploring")) {
+                confirm = tr("Replace all data on this phone with demo data? Export a backup first if you want to keep it.") to { vm.loadDemo() }
             }
-            NavRow("Erase everything", "Start over with onboarding", danger = true) {
-                confirm = "Erase all accounts, transactions and settings? This cannot be undone." to {
-                    vm.replaceAll(LedgerData(), Settings(theme = s.theme))
+            NavRow(tr("Erase everything"), tr("Start over with onboarding"), danger = true) {
+                confirm = tr("Erase all accounts, transactions and settings? This cannot be undone.") to {
+                    vm.replaceAll(LedgerData(), Settings(theme = s.theme, language = s.language))
                 }
             }
             Spacer(Modifier.height(Space.l))
-            Text("Ledger 1.0 · local-first · no accounts, no tracking", style = LedgerTheme.type.caption, color = c.textFaint, modifier = Modifier.padding(horizontal = Space.gutter))
+            Text(tr("Ledger 1.0 · local-first · no accounts, no tracking"), style = LedgerTheme.type.caption, color = c.textFaint, modifier = Modifier.padding(horizontal = Space.gutter))
         }
     }
 
@@ -157,16 +161,16 @@ fun SettingsScreen(d: Dashboard, vm: LedgerViewModel, nav: Nav) {
         AlertDialog(
             onDismissRequest = { confirm = null },
             text = { Text(text, style = LedgerTheme.type.body) },
-            confirmButton = { TextButton({ action(); confirm = null; nav.pop() }) { Text("Continue", color = c.negative) } },
-            dismissButton = { TextButton({ confirm = null }) { Text("Cancel") } },
+            confirmButton = { TextButton({ action(); confirm = null; nav.pop() }) { Text(tr("Continue"), color = c.negative) } },
+            dismissButton = { TextButton({ confirm = null }) { Text(tr("Cancel")) } },
         )
     }
     pendingRestore?.let { (data, settings) ->
         AlertDialog(
             onDismissRequest = { pendingRestore = null },
-            text = { Text("Restore ${data.transactions.size} transactions and ${data.accounts.size} accounts? Everything currently on this phone will be replaced.", style = LedgerTheme.type.body) },
-            confirmButton = { TextButton({ vm.replaceAll(data, settings.copy(onboarded = true)); pendingRestore = null; vm.toast("Backup restored") }) { Text("Restore", color = c.negative) } },
-            dismissButton = { TextButton({ pendingRestore = null }) { Text("Cancel") } },
+            text = { Text(tr("Restore %d transactions and %d accounts? Everything currently on this phone will be replaced.", data.transactions.size, data.accounts.size), style = LedgerTheme.type.body) },
+            confirmButton = { TextButton({ vm.replaceAll(data, settings.copy(onboarded = true)); pendingRestore = null; vm.toast(tr("Backup restored")) }) { Text(tr("Restore"), color = c.negative) } },
+            dismissButton = { TextButton({ pendingRestore = null }) { Text(tr("Cancel")) } },
         )
     }
 }
@@ -185,6 +189,6 @@ private fun NavRow(title: String, subtitle: String, danger: Boolean = false, onC
 
 @Composable
 private fun MoneySetting(value: Long, helper: String? = null, onChange: (Long) -> Unit) {
-    var text by remember { mutableStateOf(if (value > 0) value.toString() else "") }
+    var text by remember { mutableStateOf(if (value > 0) Money.group(value) else "") }
     AmountInput(text, { t -> text = t; val v = if (t.isBlank()) 0L else Money.parse(t); if (v != null) onChange(v) }, helper = helper)
 }

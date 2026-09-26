@@ -55,6 +55,7 @@ import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
+import dev.personal.ledger.i18n.tr
 import dev.personal.ledger.ui.UiMessage
 import dev.personal.ledger.ui.theme.LedgerTheme
 import dev.personal.ledger.ui.theme.Motion
@@ -131,17 +132,16 @@ fun BoxScope.UndoBar(message: UiMessage?, bottomInset: androidx.compose.ui.unit.
     ) {
         val m = last ?: return@AnimatedVisibility
         Row(
-            Modifier.fillMaxWidth().heightIn(min = 52.dp).clip(Shapes.chip)
-                .background(if (c.isDark) c.surfaceHigh else androidx.compose.ui.graphics.Color(0xFF1A1E24))
+            Modifier.fillMaxWidth().heightIn(min = 52.dp).clip(Shapes.button).background(c.cardFace)
                 .padding(start = Space.l, end = 6.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            Icon(Icons.Rounded.Check, null, Modifier.size(18.dp), tint = c.positive)
+            Icon(Icons.Rounded.Check, null, Modifier.size(18.dp), tint = c.onCardFace.copy(alpha = 0.7f))
             Spacer(Modifier.width(10.dp))
-            Text(m.text, style = LedgerTheme.type.label, color = androidx.compose.ui.graphics.Color(0xFFF1F3F6), modifier = Modifier.weight(1f), maxLines = 2)
+            Text(m.text, style = LedgerTheme.type.label, color = c.onCardFace, modifier = Modifier.weight(1f), maxLines = 2)
             if (m.undo != null) {
                 Text(
-                    "Undo", style = LedgerTheme.type.bodyStrong, color = if (c.isDark) c.accent else androidx.compose.ui.graphics.Color(0xFF8097FF),
+                    tr("Undo"), style = LedgerTheme.type.bodyStrong, color = c.onCardFace,
                     modifier = Modifier.clip(Shapes.chip).clickable(role = Role.Button) { onUndo(m) }.padding(horizontal = 14.dp, vertical = 12.dp),
                 )
             }
@@ -154,17 +154,18 @@ fun BoxScope.UndoBar(message: UiMessage?, bottomInset: androidx.compose.ui.unit.
  * `000` makes VND amounts two taps shorter.
  */
 @Composable
-fun Numpad(onDigit: (String) -> Unit, onBackspace: () -> Unit, onClear: () -> Unit, saveEnabled: Boolean, saveLabel: String = "Save", onSave: () -> Unit, modifier: Modifier = Modifier) {
+fun Numpad(onDigit: (String) -> Unit, onBackspace: () -> Unit, onClear: () -> Unit, saveEnabled: Boolean, saveLabel: String = tr("Save"), onSave: () -> Unit, modifier: Modifier = Modifier) {
     val c = LedgerTheme.colors
     val view = LocalView.current
-    val gap = 8.dp
-    val keyH = 58.dp
+    val gap = 6.dp
+    val keyH = 60.dp
     @Composable
     fun Key(label: String, m: Modifier, onLong: (() -> Unit)? = null, desc: String = label, click: () -> Unit, content: @Composable () -> Unit = {
         Text(label, style = LedgerTheme.type.numpad, color = c.text)
     }) {
         Box(
-            m.height(keyH).clip(Shapes.key).background(c.surfaceAlt)
+            // Borderless keys: the digits are the interface; the press ripple is the feedback.
+            m.height(keyH).clip(Shapes.key)
                 .combinedClickable(onLongClick = onLong, role = Role.Button) { Haptics.tick(view); click() }
                 .semantics { contentDescription = desc },
             contentAlignment = Alignment.Center,
@@ -175,7 +176,7 @@ fun Numpad(onDigit: (String) -> Unit, onBackspace: () -> Unit, onClear: () -> Un
             listOf(listOf("1", "2", "3"), listOf("4", "5", "6"), listOf("7", "8", "9"), listOf("000", "0")).forEach { row ->
                 Row(horizontalArrangement = Arrangement.spacedBy(gap)) {
                     row.forEach { d -> Key(d, Modifier.weight(1f), click = { onDigit(d) }) }
-                    if (row.size == 2) Key("", Modifier.weight(1f), onLong = onClear, desc = "Delete", click = onBackspace) {
+                    if (row.size == 2) Key("", Modifier.weight(1f), onLong = onClear, desc = tr("Delete"), click = onBackspace) {
                         Icon(Icons.AutoMirrored.Rounded.Backspace, null, tint = c.text, modifier = Modifier.size(24.dp))
                     }
                 }

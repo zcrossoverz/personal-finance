@@ -1,5 +1,6 @@
 package dev.personal.ledger.domain
 
+import dev.personal.ledger.i18n.tr
 import dev.personal.ledger.data.Account
 import dev.personal.ledger.data.AccountType
 import dev.personal.ledger.data.Cadence
@@ -141,7 +142,7 @@ object Obligations {
                     cashDelta = if (spendable(acc)) -amt else 0,
                     actionable = isFirst,
                     installmentId = plan.id,
-                    subtitle = "${idx + 1} of ${plan.periods} · ${acc?.name ?: ""}",
+                    subtitle = tr("%d of %d · %s", idx + 1, plan.periods, acc?.name ?: ""),
                 )
                 isFirst = false
                 idx++
@@ -167,7 +168,7 @@ object Obligations {
                     cashDelta = -s.statementBalance,
                     actionable = true,
                     cardId = card.id,
-                    subtitle = "Statement balance",
+                    subtitle = tr("Statement balance"),
                 )
             }
             // Future statements: unbilled charges so far + scheduled charges before each close.
@@ -193,7 +194,7 @@ object Obligations {
                     accountId = card.id,
                     cashDelta = -amt,
                     cardId = card.id,
-                    subtitle = "Next statement · estimate",
+                    subtitle = tr("Next statement · estimate"),
                 )
                 carry = 0
                 prevClose = close
@@ -236,10 +237,10 @@ object SafeToSpendCalc {
         val notes = ArrayList<String>()
         val salary = Obligations.nextSalary(data, today)
         val horizon = salary?.first ?: YearMonth.from(today).plusMonths(1).atDay(1).also {
-            notes += "No salary date set — counting until the end of the month."
+            notes += tr("No pay day set — counting until the end of the month.")
         }
         salary?.second?.let { r ->
-            if (r.nextDue.epochDayToDate().isBefore(today)) notes += "Last salary (${Fmt.dayMonth(r.nextDue.epochDayToDate())}) isn't recorded yet."
+            if (r.nextDue.epochDayToDate().isBefore(today)) notes += tr("Last salary (%s) isn't recorded yet.", Fmt.dayMonth(r.nextDue.epochDayToDate()))
         }
         val position = Ledger.position(data, balances = balances)
         val items = Obligations.upcoming(data, today, horizon.minusDays(1), balances)
@@ -251,11 +252,11 @@ object SafeToSpendCalc {
         val days = daysBetween(today, horizon).toInt().coerceAtLeast(1)
 
         val estimated = items.count { it.certainty == Certainty.ESTIMATED }
-        if (estimated > 0) notes += "$estimated upcoming amount${if (estimated > 1) "s are" else " is an"} estimate${if (estimated > 1) "s" else ""} (variable bills, next card statement)."
+        if (estimated > 0) notes += tr("%d upcoming amounts are estimates (variable bills, next card statement).", estimated)
         val cardsWithoutCycle = data.accounts.count { it.type == AccountType.CREDIT_CARD && !it.archived && (it.statementDay == null || it.dueDay == null) }
-        if (cardsWithoutCycle > 0) notes += "$cardsWithoutCycle card${if (cardsWithoutCycle > 1) "s have" else " has"} no statement date, so card dues may be missing."
+        if (cardsWithoutCycle > 0) notes += tr("%d cards have no statement date, so card dues may be missing.", cardsWithoutCycle)
         val lastTx = data.transactions.maxOfOrNull { it.date }
-        if (lastTx == null || daysBetween(lastTx.toLocalDate(), today) > 14) notes += "No transactions in the last 14 days — balances may be out of date."
+        if (lastTx == null || daysBetween(lastTx.toLocalDate(), today) > 14) notes += tr("No transactions in the last 14 days — balances may be out of date.")
 
         val confidence = when {
             salary == null || lastTx == null -> Confidence.LOW

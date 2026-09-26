@@ -40,6 +40,8 @@ import java.time.LocalTime
 import java.time.YearMonth
 
 class LedgerTest {
+    // Formatting assertions below are written in English conventions.
+    @org.junit.Before fun english() { dev.personal.ledger.i18n.I18n.lang = dev.personal.ledger.i18n.Lang.EN }
     private val today = LocalDate.of(2026, 9, 26)
     private val bank = Account(1, "MB Bank", AccountType.BANK, "mb", openingBalance = 10_000_000)
     private val vcb = Account(2, "Vietcombank", AccountType.BANK, "vcb", openingBalance = 0)
