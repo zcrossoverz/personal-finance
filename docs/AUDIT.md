@@ -47,7 +47,32 @@ This is what each pass found and what changed as a result.
 Verified on device: save → Undo fully restores balances; paying a variable bill advances its schedule and learns the
 new amount (720k → 685k, next due moves to 27 Oct); notification deep link opens that bill's amount entry.
 
-## Financial correctness (unit tests, `LedgerTest`, 15 tests)
+## Pass 4 — Vietnamese by default, design v2
+
+Goal: make Vietnamese the default language and move away from a look that read as a generic, AI-generated template.
+
+| Area | Finding | Change |
+|---|---|---|
+| Visual language | Indigo accent, pastel icon tiles, coloured pills, uppercase letter-spaced headers, coloured side bars on insight cards — each common in templates, together unmistakable | Ink/paper palette, one interactive colour, neutral icon wells with coloured glyphs, dot+caption tags, sentence-case headers, insights as a divided list |
+| Typography | System Roboto, no personality, cramped Vietnamese diacritics | Be Vietnam Pro bundled; generous line heights |
+| Numbers | Rolling counter would jitter with the new proportional digits | Directional slide on change |
+| Credit cards | Tinted gradient panel | Rendered as a dark card object; due date promoted when close |
+| Keypad | Grey tiles | Borderless keys, ink Save |
+| Bottom bar | Material pill indicator | Outlined → filled icon, ink capture key |
+| Charts | Category hues in money-flow ribbons and bars | Monochrome; colour only for kept/debt/estimate |
+| Language | English only | `tr()` + complete Vietnamese table (default) + English setting; localized money (`65.000 ₫`, `8,4tr`) and dates (`T7, 26/09`) |
+| Language switch | Bottom bar kept the old language (composables that don't read changed state aren't recomposed) | UI tree keyed on language; navigation moved into the ViewModel so the user stays on the same screen |
+| Copy | Seed names "Subscription"/"Shopping" in a Vietnamese UI; heatmap weekday letters in English; pace line wrapping to two lines | "Gói đăng ký"/"Mua sắm"; T2…CN; shorter pace copy |
+| Correctness | "Largest upcoming payment" picked a 7tr transfer to the user's own savings | Transfers excluded — only bills, subscriptions, installments and card dues are payments |
+| Search | Vietnamese phrases split into words and missed ("ăn uống tuần này", "hoàn tiền") | Multi-word category names matched first; Vietnamese keywords for refunds, subscriptions, transfers, income |
+
+`I18nTest` scans the sources: the build fails if any `tr()` string has no Vietnamese entry, or if a translation
+changes the number of format arguments. It also pins the Vietnamese number and date formats.
+
+Reviewed on device in Vietnamese and English, light and dark: Home, entry sheet, safe-to-spend breakdown, Plan,
+Money, credit card, Insights (all sections), transaction detail, Settings, onboarding.
+
+## Financial correctness (unit tests, `LedgerTest` 15 + `I18nTest` 3)
 
 Transfers zero-sum and excluded from income/expense · card purchase + payment counted once · refund offsets, never
 income · reimbursement reduces the category, not income · split lines drive analytics; refunds of splits allocate
@@ -58,7 +83,7 @@ search parsing · demo-data invariants (no future transactions, splits sum, no n
 
 ## Performance
 
-Release build (R8): 2.6 MB APK, cold start ≈ 0.6 s on the emulator. All financial computation runs on
+Release build (R8): 2.9 MB APK including ~540 KB of bundled fonts, cold start ≈ 0.6 s on the emulator. All financial computation runs on
 `Dispatchers.Default`; Insights computes per month asynchronously. Emulator frame statistics are dominated by
 "slow issue draw commands" (GL translation) rather than UI-thread work, so they are not a reliable signal —
 profile on a physical phone before optimising further (a Baseline Profile would be the first step).
@@ -71,8 +96,6 @@ instead of a chart library because readability, scrubbing and dark mode needed d
 
 ## Known limitations / next steps
 
-- Typeface: system sans (Roboto) with tabular figures. The Google Fonts provider certificates aren't available
-  offline here; dropping Inter `.ttf` files into `res/font` is a 10-line change.
 - App lock couldn't be exercised on the emulator (no enrolled credential); the toggle is disabled with an explanation
   when the device has no screen lock.
 - Single currency, whole units only (fine for VND; USD/EUR cents are not supported).
@@ -80,5 +103,12 @@ instead of a chart library because readability, scrubbing and dark mode needed d
 - No home-screen widget yet — launcher shortcuts cover the top 3 presets plus "Quick command" and "Upcoming".
 - Preset reordering uses up/down controls rather than drag-and-drop.
 - Room schema version 1 with schema export on; migrations will be needed with the first schema change.
+- Category and preset names are user data: seeded in Vietnamese and not translated when switching to English.
 - A recurring *transfer* into a credit card would overlap with the card's statement estimate in the forecast; use
   the card due instead (card payments are always derived from the statement).
+
+## Build & release
+
+GitHub Actions (`.github/workflows/android.yml`) runs the unit tests and builds debug + release APKs on every push
+and pull request; `v*` tags publish a GitHub Release with the signed release APK. Release signing comes from
+repository secrets (keystore kept outside the repo); v1.0.0 was verified to be signed with the release certificate.

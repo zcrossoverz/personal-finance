@@ -49,7 +49,8 @@ Derived rules used to settle every design argument:
 
 ## 3. Information architecture
 
-Four destinations in a bottom bar, mirroring the product modules (CAPTURE is on Home, not a tab):
+Four destinations in a bottom bar, mirroring the product modules (CAPTURE is on Home, not a tab).
+In the Vietnamese UI they are *Tổng quan · Tài sản · Kế hoạch · Phân tích*.
 
 ```
 ┌ Home ──────────── state + capture (operational, no charts)
@@ -134,50 +135,74 @@ an account chip row and a date chip (Today / Yesterday / pick). Save is the larg
 
 ---
 
-## 7. Design system
+## 7. Design system (v2)
 
-Three layers (primitive → semantic → component), implemented in `ui/theme`.
+Three layers (primitive → semantic → component), implemented in `ui/theme/Theme.kt`.
+
+**Direction.** An editorial, ink-on-paper finance tool. v1 used an indigo accent, pastel icon tiles, coloured pills
+and uppercase section labels; together they read as a generic template. v2 keeps one interactive colour (ink),
+reserves colour for meaning, and lets typography and numbers carry the hierarchy. No gradients, glow or tinted cards.
 
 **Colour (semantic)**
 
 | Token | Light | Dark | Use |
 |---|---|---|---|
-| bg | `#F5F6F8` | `#0A0C0F` | window |
-| surface | `#FFFFFF` | `#13161B` | cards |
-| surfaceAlt | `#EEF0F3` | `#1A1E24` | chips, keys, inset areas |
-| hairline | `#E3E6EA` | `#23282F` | 1dp dividers (light mode only on cards) |
-| text | `#0D1015` | `#F1F3F6` | primary |
-| textMuted | `#5A6371` | `#9BA3AF` | labels (≥ 4.5:1) |
-| textFaint | `#8B94A1` | `#6B7380` | tertiary, axis |
-| accent | `#3D5AFE`→`#4263EB` | `#7B93FF` | the one brand colour: CTAs, selection, primary series |
-| positive | `#0F9D6B` | `#3DD68C` | income, under pace |
-| negative | `#D93A3F` | `#FF6B6E` | liabilities, overdue, over pace |
-| caution | `#B7791F` | `#F2B55A` | due soon, estimates |
+| bg | `#F6F5F2` warm paper | `#0C0C0B` | window |
+| surface | `#FFFFFF` | `#161615` | cards, preset tiles |
+| surfaceAlt | `#EFEEEA` | `#1F1F1D` | icon wells, inputs, chips at rest |
+| hairline | `#E7E5E0` | `#2A2A27` | 1 dp borders and dividers |
+| text | `#141412` ink | `#F3F2EE` bone | primary text |
+| textMuted | `#69675F` | `#A3A19A` | labels (≥ 4.5 : 1) |
+| accent | ink `#141412` | bone `#F3F2EE` | buttons, selection, capture key, chart series |
+| positive | `#177245` | `#55C48C` | income, kept, under pace |
+| negative | `#C4352B` | `#F2695C` | debt, overdue |
+| caution | `#9E5E06` | `#E9AE4E` | estimates, due soon, ahead of pace |
+| cardFace | `#1B1B19` | `#282826` | credit cards rendered as the physical object |
 
-Expenses are **not** red — spending is normal. Red is reserved for debt and problems.
-Category identity uses 8 muted hues at 14 % tint behind the icon; charts use accent + neutral, not rainbows.
+Spending is never red — it is normal. Category identity is a muted glyph colour on a neutral well, never a fill.
+Charts are monochrome (ink series, grey comparisons) with colour only where it means something.
 
-**Type** — Inter (downloadable, falls back to system sans), tabular figures for every amount.
+**Type** — Be Vietnam Pro (OFL, bundled in `res/font`, so the app stays offline), designed for Vietnamese
+diacritics. Line heights are generous (≈ 1.3–1.45×) because Vietnamese stacks marks above and below.
 
 | Role | Size / weight | Use |
 |---|---|---|
-| hero | 40 / SemiBold, -2 % tracking | cash on hand, quick-entry amount |
-| display | 30 / SemiBold | screen hero numbers |
-| title | 20 / SemiBold | screen titles |
-| headline | 17 / SemiBold | card titles, list amounts |
-| body | 15 / Regular | text |
+| hero | 38 / Medium, −3 % | cash on hand, entry amount (44) |
+| display | 28 / Medium | screen hero numbers |
+| title | 26 / SemiBold | tab titles |
+| headline | 17 / SemiBold | card titles, pushed-screen titles (19) |
+| section | 16 / SemiBold | sentence-case section headers |
+| body / bodyStrong | 15 / Regular, Medium | text, list titles, amounts |
 | label | 13 / Medium | chips, meta |
-| caption | 12 / Medium, +2 % tracking | section labels, axis (never smaller) |
+| caption | 12 / Regular | secondary lines, axis labels (never smaller) |
 
-**Space** 4 · 8 · 12 · 16 · 20 · 24 · 32 · 40. Page gutter 20 dp. Card padding 16–20 dp.
-**Shape** card 22 dp · tile 18 dp · chip 12 dp · sheet 28 dp top · pill full.
-**Elevation** none in dark mode (tonal steps only); light mode cards: hairline + 1 dp soft shadow.
+The font has proportional digits, so changing totals slide vertically (direction = up/down) instead of rolling
+digit by digit, which would jitter.
+
+**Components worth knowing**
+- *Tag* — a 6 dp dot + caption instead of a pill; a hollow dot marks estimates (same grammar as dashed lines).
+- *Section header* — sentence case, with a quiet "action ›" on the right.
+- *Keypad* — borderless keys, tall ink Save key in the thumb corner.
+- *Bottom bar* — outlined icons at rest, filled when selected, ink capture key in the centre; no pill indicator.
+
+**Space** 4 · 8 · 12 · 16 · 20 · 24 · 32. Page gutter 20 dp.
+**Shape** card 20 · tile 16 · button 14 · chip/well 12 · sheet 24 top.
+**Elevation** none; surfaces are separated by tone and 1 dp hairlines. Only the quick-amount popup has a soft shadow.
 **Motion** tap feedback ≤ 100 ms · micro 160 ms · standard 240 ms · emphasized spring (damping 0.85).
-Save → sheet dismiss 180 ms, row slides in 240 ms, totals roll 400 ms; none block input.
-**Touch** ≥ 48 dp targets, numpad keys 64 dp tall.
-**Icons** one family (Material Symbols Rounded), 22 dp in lists, 24 dp in tiles.
+**Touch** ≥ 48 dp targets; keypad keys 60 dp.
+**Icons** Material Symbols Rounded, 20 dp in wells, 24 dp in preset tiles.
 
-**Number format** `65,000 ₫` in full; compact `65k`, `8.4m`, `1.42m`, `1.2b` (≤ 3 significant digits).
+**Language & numbers.** Vietnamese is the default; English is a setting. Every user-facing string goes through
+`tr("English source")` with a complete table in `i18n/Vi.kt`; `I18nTest` fails if any string lacks a translation or
+a translation changes the number of arguments.
+
+| | Vietnamese (default) | English |
+|---|---|---|
+| Full amount | `65.000 ₫` | `65,000 ₫` |
+| Compact | `65k` · `8,4tr` · `1,42tr` · `1,2tỷ` | `65k` · `8.4m` · `1.42m` · `1.2b` |
+| Dates | `T7, 26/09` · `Tháng 9` · `còn 3 ngày` | `Sat, 26 Sep` · `September` · `in 3 days` |
+
+Amount input accepts either convention: `65.000`, `65,000`, `65k`, `1,5tr`, `1tr5`, `1.5m`.
 
 ---
 
