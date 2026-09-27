@@ -181,6 +181,14 @@ class LedgerTest {
         assertEquals(r.safe / 14, r.perDay)
     }
 
+    @Test fun freshLedgerIsNotFlaggedAsStale() {
+        val salary = Recurring(1, RecurringKind.INCOME, "Salary", 25_000_000, nextDue = LocalDate.of(2026, 10, 10).toEpochDay(),
+            anchorDay = 10, accountId = bank.id, isSalary = true)
+        val r = SafeToSpendCalc.compute(data(recurring = listOf(salary)), Settings(), today)
+        assertEquals(SafeToSpendCalc.Confidence.HIGH, r.confidence)
+        assertTrue(r.notes.isEmpty())
+    }
+
     @Test fun recurrenceKeepsAnchorDay() {
         val jan31 = LocalDate.of(2026, 1, 31)
         val feb = Recurrence.next(jan31, Cadence.MONTHLY, 31)

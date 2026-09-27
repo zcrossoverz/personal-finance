@@ -72,7 +72,18 @@ changes the number of format arguments. It also pins the Vietnamese number and d
 Reviewed on device in Vietnamese and English, light and dark: Home, entry sheet, safe-to-spend breakdown, Plan,
 Money, credit card, Insights (all sections), transaction detail, Settings, onboarding.
 
-## Financial correctness (unit tests, `LedgerTest` 15 + `I18nTest` 3)
+## Pass 5 — crash after real setup (reported from a phone)
+
+| Finding | Cause | Fix |
+|---|---|---|
+| App crashed on **Xong** at the end of setup with real data; demo data was fine | `biometric 1.1.0` pulled `fragment 1.2.5`, whose `FragmentActivity` rejects the > 16-bit request codes `activity 1.9` generates (`Can only use lower 16 bits for requestCode`). Setup asks for notification permission; the demo path doesn't | `fragment-ktx 1.8.5` pinned. The same bug would have crashed **Export backup, Export CSV, Restore** and the reminders toggle — all four verified on a release build |
+| Only a fixed list of banks (no HDBank, BIDV…) | Setup offered 8 hard-coded accounts | One-tap chips for common banks/wallets plus a free-text name with a type; typed accounts get command aliases automatically (`HDBank` → `hd`), also when the alias field is left blank in Settings |
+| Setup silently gave every credit card a 30tr limit, statement day 20 and due day 5 | Placeholder values used as data | Limit, statement day and due day are inputs; nothing is invented when left blank |
+| "Incomplete data" on safe-to-spend right after setup | A ledger with no transactions was treated as stale | The staleness note only applies when there is history that has gone quiet |
+
+Tests added: `AccountAliasTest` (aliases, command entry finds a typed account), fresh-ledger confidence.
+
+## Financial correctness (unit tests, `LedgerTest` 16 + `I18nTest` 3 + `AccountAliasTest` 2)
 
 Transfers zero-sum and excluded from income/expense · card purchase + payment counted once · refund offsets, never
 income · reimbursement reduces the category, not income · split lines drive analytics; refunds of splits allocate

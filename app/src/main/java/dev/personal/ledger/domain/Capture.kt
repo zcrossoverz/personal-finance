@@ -198,3 +198,19 @@ object CommandParser {
             ?: cats.firstOrNull { c -> c.name.fold().split(' ').any { it.startsWith(tok) } }?.id
     }
 }
+
+/**
+ * Short keywords for command entry and search, derived from an account name the user typed:
+ * "HDBank" → "hdbank,hd" · "Techcombank" → "techcombank,techcom" · "Ví Viettel Money" → "viviettelmoney,vvm,vi".
+ */
+fun accountAliases(name: String): String {
+    val words = name.fold().split(Regex("[^a-z0-9]+")).filter { it.isNotEmpty() }
+    if (words.isEmpty()) return ""
+    val out = LinkedHashSet<String>()
+    out += words.joinToString("")
+    val joined = words.joinToString("")
+    if (joined.endsWith("bank") && joined.length > 5) out += joined.removeSuffix("bank")
+    if (words.size > 1) out += words.joinToString("") { it.take(1) }
+    out += words.first()
+    return out.filter { it.length >= 2 }.joinToString(",")
+}

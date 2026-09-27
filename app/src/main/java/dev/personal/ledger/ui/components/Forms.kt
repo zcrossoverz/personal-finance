@@ -68,7 +68,7 @@ fun TextInput(value: String, onChange: (String) -> Unit, placeholder: String, mo
             decorationBox = { inner -> Box { if (value.isEmpty()) Text(placeholder, style = LedgerTheme.type.body, color = c.textFaint); inner() } },
         )
         if (error != null) Text(error, style = LedgerTheme.type.caption, color = c.negative, modifier = Modifier.padding(start = 4.dp, top = 4.dp))
-        else if (helper != null) Text(helper, style = LedgerTheme.type.caption, color = c.textMuted, modifier = Modifier.padding(start = 4.dp, top = 4.dp))
+        else if (!helper.isNullOrBlank()) Text(helper, style = LedgerTheme.type.caption, color = c.textMuted, modifier = Modifier.padding(start = 4.dp, top = 4.dp))
     }
 }
 

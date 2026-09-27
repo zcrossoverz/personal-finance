@@ -256,10 +256,11 @@ object SafeToSpendCalc {
         val cardsWithoutCycle = data.accounts.count { it.type == AccountType.CREDIT_CARD && !it.archived && (it.statementDay == null || it.dueDay == null) }
         if (cardsWithoutCycle > 0) notes += tr("%d cards have no statement date, so card dues may be missing.", cardsWithoutCycle)
         val lastTx = data.transactions.maxOfOrNull { it.date }
-        if (lastTx == null || daysBetween(lastTx.toLocalDate(), today) > 14) notes += tr("No transactions in the last 14 days — balances may be out of date.")
+        // A brand-new ledger has no history yet; only warn when there is history and it has gone quiet.
+        if (lastTx != null && daysBetween(lastTx.toLocalDate(), today) > 14) notes += tr("No transactions in the last 14 days — balances may be out of date.")
 
         val confidence = when {
-            salary == null || lastTx == null -> Confidence.LOW
+            salary == null -> Confidence.LOW
             notes.isEmpty() -> Confidence.HIGH
             else -> Confidence.MEDIUM
         }

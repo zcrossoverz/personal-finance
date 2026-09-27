@@ -230,7 +230,7 @@ fun EditAccountScreen(d: Dashboard, vm: LedgerViewModel, nav: Nav, id: Long?) {
             FieldLabel(tr("Name")); TextInput(name, { name = it }, "MB Bank, Tiền mặt, MoMo…")
             FieldLabel(if (card) tr("Current debt on the card") else tr("Current balance"))
             AmountInput(balance, { balance = it }, helper = if (existing != null) tr("Changing this records a balance adjustment") else null)
-            FieldLabel(tr("Short names for quick entry")); TextInput(aliases, { aliases = it }, "mb, mbbank", helper = tr("Used in commands like “350k xăng mb” and in search"))
+            FieldLabel(tr("Short names for quick entry")); TextInput(aliases, { aliases = it }, "mb, mbbank", helper = tr("Used in commands like “350k xăng mb” and in search. Leave blank to generate from the name."))
             if (card) {
                 FieldLabel(tr("Credit limit")); AmountInput(limit, { limit = it })
                 Row {
@@ -248,7 +248,7 @@ fun EditAccountScreen(d: Dashboard, vm: LedgerViewModel, nav: Nav, id: Long?) {
             FormFooter(tr("Save"), valid, onSave = {
                 val target = if (card) -(bal ?: 0) else (bal ?: 0)
                 val base = Account(
-                    id = existing?.id ?: 0, name = name.trim(), type = type, aliases = aliases.trim(),
+                    id = existing?.id ?: 0, name = name.trim(), type = type, aliases = aliases.trim().ifBlank { dev.personal.ledger.domain.accountAliases(name) },
                     openingBalance = existing?.openingBalance ?: target, colorIndex = color,
                     creditLimit = if (card) Money.parse(limit) else null, statementDay = if (card) sDay else null, dueDay = if (card) dDay else null,
                     spendable = spendable && !card && type != AccountType.SAVINGS, archived = archived, sortOrder = existing?.sortOrder ?: d.data.accounts.size,

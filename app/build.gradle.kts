@@ -16,8 +16,8 @@ android {
         applicationId = "dev.personal.ledger"
         minSdk = 26
         targetSdk = 36
-        versionCode = 1
-        versionName = "1.0.0"
+        versionCode = 2
+        versionName = "1.0.1"
     }
 
     // Release signing comes from the environment (CI secrets or a local keystore), never from the repo.
@@ -69,6 +69,7 @@ dependencies {
     implementation(libs.androidx.room.ktx)
     ksp(libs.androidx.room.compiler)
     implementation(libs.androidx.biometric)
+    implementation(libs.androidx.fragment)
     implementation(libs.androidx.work.runtime)
     implementation(libs.kotlinx.serialization.json)
 
