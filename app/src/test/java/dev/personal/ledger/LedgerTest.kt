@@ -208,6 +208,12 @@ class LedgerTest {
         assertEquals(5_000_000L, Money.parse("5m"))
         assertEquals(85_000L, Money.parse("85k"))
         assertEquals(65_000L, Money.parse("65,000"))
+        // Absurdly long input is rejected instead of crashing the text field or command line.
+        assertNull(Money.parse("99999999999999999999tr"))
+        assertNull(Money.parse("99999999999999999999"))
+        assertNull(Money.parse("9999999999999b"))
+        assertEquals(2_000_000_000L, Money.parse("2 tỷ"))
+        assertNull(CommandParser.parse("99999999999999999999tr ăn", DemoData.build(LocalDateTime.of(2026, 9, 26, 12, 0)), DemoData.MB).amount)
     }
 
     @Test fun commandParser() {

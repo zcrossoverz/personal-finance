@@ -83,6 +83,23 @@ Money, credit card, Insights (all sections), transaction detail, Settings, onboa
 
 Tests added: `AccountAliasTest` (aliases, command entry finds a typed account), fresh-ledger confidence.
 
+## Pass 6 — full check before 1.0.2
+
+| Finding | Cause | Fix |
+|---|---|---|
+| Typing a very long number in any amount field (setup balance, account editor, quick command, search) crashed the app | `Money.parse` called `toLong()` on the digits of "…tr" input | Parsing never throws; amounts above a million tỷ are rejected as invalid |
+| An auto-pay bill or salary could be posted twice when it fell due | App start, activity start and the daily worker each ran `autoPost`; two runs read the schedule before either advanced it | `autoPost` runs under a mutex |
+| Restoring a backup made with App lock on, onto a phone without a screen lock, would lock the user out on next launch | The lock setting came from the backup; the lock screen had no way to unlock | Restore keeps this phone's lock setting, and the app never locks when the device can't authenticate |
+| Rotating or switching theme right after unlocking asked to unlock again | The lock state was re-read from settings on every activity recreation | Unlocked state survives recreation; only a real absence (> 1 min) re-locks |
+| Editing a transaction from today moved its time to "now" | Save always used the current time for today's date | Editing keeps the original time unless the day changes |
+| A failing file provider during Export backup/CSV would crash the app | Write errors were not caught | Errors are caught and shown as "Couldn't save the file" |
+| Lint: 4 errors (unremembered interaction sources in the sheet, `StateFlow.value` read in composition in the account editor, untranslated `app_name`) | — | Fixed; `lintDebug` passes |
+| Settings footer said "Ledger 1.0" | Hard-coded | Shows the installed version |
+
+Verified on the emulator with the signed release build, installed as an update over 1.0.1: real setup (no crash
+on **Xong**, notification prompt), oversized amount in setup and quick command, preset entry, command entry,
+editing, Export backup, rotation, every tab.
+
 ## Financial correctness (unit tests, `LedgerTest` 16 + `I18nTest` 3 + `AccountAliasTest` 2)
 
 Transfers zero-sum and excluded from income/expense · card purchase + payment counted once · refund offsets, never

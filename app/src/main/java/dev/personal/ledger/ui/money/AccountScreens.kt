@@ -35,6 +35,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -206,7 +207,7 @@ fun ActivityScreen(d: Dashboard, vm: LedgerViewModel, nav: Nav, initial: String)
 fun EditAccountScreen(d: Dashboard, vm: LedgerViewModel, nav: Nav, id: Long?) {
     val c = LedgerTheme.colors
     val existing = id?.let { d.data.accountById[it] }
-    val settings = vm.settings.value
+    val settings by vm.settings.collectAsStateWithLifecycle()
     var name by remember { mutableStateOf(existing?.name ?: "") }
     var type by remember { mutableStateOf(existing?.type ?: AccountType.BANK) }
     var balance by remember { mutableStateOf(existing?.let { (d.balances[it.id] ?: 0).let { b -> if (it.type == AccountType.CREDIT_CARD) (-b).toString() else b.toString() } } ?: "") }

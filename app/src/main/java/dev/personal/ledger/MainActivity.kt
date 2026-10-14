@@ -8,6 +8,7 @@ import android.view.WindowManager
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.viewModels
+import androidx.biometric.BiometricManager
 import androidx.biometric.BiometricManager.Authenticators.BIOMETRIC_WEAK
 import androidx.biometric.BiometricManager.Authenticators.DEVICE_CREDENTIAL
 import androidx.biometric.BiometricPrompt
@@ -59,7 +60,8 @@ class MainActivity : FragmentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         enableEdgeToEdge()
         super.onCreate(savedInstanceState)
-        locked = vm.settings.value.biometricLock
+        // A rotation or theme change recreates the activity; that is not an absence, so keep the unlocked state.
+        locked = vm.settings.value.biometricLock && canLock() && savedInstanceState?.getBoolean(KEY_LOCKED, true) != false
         handle(intent)
         setContent {
             val settings by vm.settings.collectAsStateWithLifecycle()
@@ -83,6 +85,11 @@ class MainActivity : FragmentActivity() {
         if (locked) authenticate()
     }
 
+    override fun onSaveInstanceState(outState: Bundle) {
+        super.onSaveInstanceState(outState)
+        outState.putBoolean(KEY_LOCKED, locked)
+    }
+
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
         handle(intent)
@@ -96,7 +103,7 @@ class MainActivity : FragmentActivity() {
     override fun onStart() {
         super.onStart()
         // Re-lock only after a real absence, so switching to a banking app to copy a number doesn't cost a prompt.
-        if (vm.settings.value.biometricLock && backgroundedAt > 0 && SystemClock.elapsedRealtime() - backgroundedAt > 60_000) {
+        if (vm.settings.value.biometricLock && canLock() && backgroundedAt > 0 && SystemClock.elapsedRealtime() - backgroundedAt > 60_000) {
             locked = true
             authenticate()
         }
@@ -114,6 +121,12 @@ class MainActivity : FragmentActivity() {
             else -> launch.value
         }
     }
+
+    /**
+     * The lock needs a fingerprint, face or screen lock to unlock with. If the device no longer has one (or a restored
+     * backup turned the lock on), locking would shut the user out of their own data for good.
+     */
+    private fun canLock() = BiometricManager.from(this).canAuthenticate(BIOMETRIC_WEAK or DEVICE_CREDENTIAL) == BiometricManager.BIOMETRIC_SUCCESS
 
     private fun authenticate() {
         val prompt = BiometricPrompt(this, ContextCompat.getMainExecutor(this), object : BiometricPrompt.AuthenticationCallback() {
@@ -143,6 +156,7 @@ class MainActivity : FragmentActivity() {
         const val ACTION_COMMAND = "dev.personal.ledger.COMMAND"
         const val ACTION_PLAN = "dev.personal.ledger.PLAN"
         const val EXTRA_PRESET = "presetId"
+        private const val KEY_LOCKED = "locked"
 
         fun symbolFor(currency: String) = when (currency) {
             "USD" -> "$"; "EUR" -> "€"; "JPY" -> "¥"; "KRW" -> "₩"; "THB" -> "฿"; else -> "₫"

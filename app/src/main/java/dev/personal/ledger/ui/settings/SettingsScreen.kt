@@ -67,14 +67,14 @@ fun SettingsScreen(d: Dashboard, vm: LedgerViewModel, nav: Nav) {
 
     val exportJson = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("application/json")) { uri ->
         if (uri != null) vm.run {
-            withContext(Dispatchers.IO) { ctx.contentResolver.openOutputStream(uri)?.use { it.write(Backup.encode(vm.settings.value, d.data).toByteArray()) } }
-            vm.toast(tr("Backup saved"))
+            val ok = withContext(Dispatchers.IO) { runCatching { ctx.contentResolver.openOutputStream(uri)!!.use { it.write(Backup.encode(vm.settings.value, d.data).toByteArray()) } }.isSuccess }
+            vm.toast(if (ok) tr("Backup saved") else tr("Couldn't save the file"))
         }
     }
     val exportCsv = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("text/csv")) { uri ->
         if (uri != null) vm.run {
-            withContext(Dispatchers.IO) { ctx.contentResolver.openOutputStream(uri)?.use { it.write(Backup.csv(d.data).toByteArray()) } }
-            vm.toast(tr("CSV exported"))
+            val ok = withContext(Dispatchers.IO) { runCatching { ctx.contentResolver.openOutputStream(uri)!!.use { it.write(Backup.csv(d.data).toByteArray()) } }.isSuccess }
+            vm.toast(if (ok) tr("CSV exported") else tr("Couldn't save the file"))
         }
     }
     val restore = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
@@ -153,7 +153,7 @@ fun SettingsScreen(d: Dashboard, vm: LedgerViewModel, nav: Nav) {
                 }
             }
             Spacer(Modifier.height(Space.l))
-            Text(tr("Ledger 1.0 · local-first · no accounts, no tracking"), style = LedgerTheme.type.caption, color = c.textFaint, modifier = Modifier.padding(horizontal = Space.gutter))
+            Text(tr("Ledger %s · local-first · no accounts, no tracking", appVersion(ctx)), style = LedgerTheme.type.caption, color = c.textFaint, modifier = Modifier.padding(horizontal = Space.gutter))
         }
     }
 
@@ -169,11 +169,14 @@ fun SettingsScreen(d: Dashboard, vm: LedgerViewModel, nav: Nav) {
         AlertDialog(
             onDismissRequest = { pendingRestore = null },
             text = { Text(tr("Restore %d transactions and %d accounts? Everything currently on this phone will be replaced.", data.transactions.size, data.accounts.size), style = LedgerTheme.type.body) },
-            confirmButton = { TextButton({ vm.replaceAll(data, settings.copy(onboarded = true)); pendingRestore = null; vm.toast(tr("Backup restored")) }) { Text(tr("Restore"), color = c.negative) } },
+            confirmButton = { TextButton({ vm.replaceAll(data, settings.copy(onboarded = true, biometricLock = s.biometricLock)); pendingRestore = null; vm.toast(tr("Backup restored")) }) { Text(tr("Restore"), color = c.negative) } },
             dismissButton = { TextButton({ pendingRestore = null }) { Text(tr("Cancel")) } },
         )
     }
 }
+
+private fun appVersion(ctx: android.content.Context): String =
+    runCatching { ctx.packageManager.getPackageInfo(ctx.packageName, 0).versionName }.getOrNull() ?: ""
 
 @Composable
 private fun NavRow(title: String, subtitle: String, danger: Boolean = false, onClick: () -> Unit) {

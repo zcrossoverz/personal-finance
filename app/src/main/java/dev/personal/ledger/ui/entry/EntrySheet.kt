@@ -140,7 +140,12 @@ fun ColumnScope.EntrySheet(d: Dashboard, vm: LedgerViewModel, nav: Nav, req: Ent
 
     fun save() {
         if (!canSave) return
-        val time = if (date == LocalDate.now()) LocalTime.now() else editing?.date?.toLocalDateTime()?.toLocalTime() ?: LocalTime.NOON
+        // Editing keeps the original time unless the day changed; new entries for today get the current time.
+        val time = when {
+            editing != null && date == editing.date.toLocalDate() -> editing.date.toLocalDateTime().toLocalTime()
+            date == LocalDate.now() -> LocalTime.now()
+            else -> editing?.date?.toLocalDateTime()?.toLocalTime() ?: LocalTime.NOON
+        }
         val millis = date.atMillis(time)
         val label = when {
             recurring != null -> recurring.name

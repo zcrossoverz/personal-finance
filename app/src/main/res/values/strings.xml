@@ -1,5 +1,5 @@
 <resources>
-    <string name="app_name">Ledger</string>
+    <string name="app_name" translatable="false">Ledger</string>
     <string name="shortcut_add">Thêm chi tiêu</string>
     <string name="shortcut_command">Nhập bằng lệnh</string>
     <string name="shortcut_plan">Sắp đến hạn</string>

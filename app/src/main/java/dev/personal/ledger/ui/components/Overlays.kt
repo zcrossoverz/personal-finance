@@ -76,7 +76,7 @@ fun <T : Any> SheetHost(request: T?, onDismiss: () -> Unit, content: @Composable
     val c = LedgerTheme.colors
     Box(Modifier.fillMaxSize()) {
         AnimatedVisibility(request != null, enter = fadeIn(tween(Motion.MICRO)), exit = fadeOut(tween(Motion.FAST))) {
-            Box(Modifier.fillMaxSize().background(c.scrim).clickable(MutableInteractionSource(), null, onClick = onDismiss))
+            Box(Modifier.fillMaxSize().background(c.scrim).clickable(remember { MutableInteractionSource() }, null, onClick = onDismiss))
         }
         AnimatedVisibility(
             request != null,
@@ -95,7 +95,7 @@ fun <T : Any> SheetHost(request: T?, onDismiss: () -> Unit, content: @Composable
                     .fillMaxWidth()
                     .clip(Shapes.sheet)
                     .background(c.surface)
-                    .clickable(MutableInteractionSource(), null) {}
+                    .clickable(remember { MutableInteractionSource() }, null) {}
                     .navigationBarsPadding()
                     .imePadding(),
             ) {

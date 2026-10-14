@@ -65,13 +65,18 @@ object Money {
 
     /**
      * Parses user amounts in either convention: "65000", "65.000", "65,000", "65k", "1.5m", "1,5tr", "5tr",
-     * "1tr5", "2 tỷ". Returns null when unparseable.
+     * "1tr5", "2 tỷ". Returns null when unparseable or larger than [MAX].
      */
-    fun parse(input: String): Long? {
+    fun parse(input: String): Long? = parseRaw(input)?.takeIf { it in 0..MAX }
+
+    /** Largest amount accepted from typed input (a million tỷ); keeps sums far from Long overflow. */
+    const val MAX = 1_000_000_000_000_000L
+
+    private fun parseRaw(input: String): Long? {
         val s = input.trim().lowercase().replace(" ", "").replace("đ", "").replace("₫", "").replace("vnd", "")
         if (s.isEmpty()) return null
         Regex("^(\\d+)tr(\\d)?$").matchEntire(s)?.let { m ->
-            val whole = m.groupValues[1].toLong()
+            val whole = m.groupValues[1].toLongOrNull()?.takeIf { it <= MAX / 1_000_000 } ?: return null
             val frac = m.groupValues[2].takeIf { it.isNotEmpty() }?.toLong() ?: 0
             return whole * 1_000_000 + frac * 100_000
         }
@@ -87,7 +92,7 @@ object Money {
         }
         if (unit == 1L) return numStr.replace(",", "").replace(".", "").toLongOrNull()
         val d = numStr.replace(',', '.').toDoubleOrNull() ?: return null
-        return (d * unit).roundToLong()
+        return (d * unit).takeIf { it <= MAX }?.roundToLong()
     }
 }
 

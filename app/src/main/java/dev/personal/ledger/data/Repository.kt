@@ -9,6 +9,8 @@ import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import java.time.LocalDate
 import java.time.LocalTime
 
@@ -16,6 +18,7 @@ import java.time.LocalTime
 typealias Undo = suspend () -> Unit
 
 class Repository(private val dao: LedgerDao, val prefs: Prefs, scope: CoroutineScope) {
+    private val autoPostLock = Mutex()
 
     /** The whole ledger, kept in memory and updated whenever any table changes. */
     val data: StateFlow<LedgerData?> = combine(
@@ -124,7 +127,9 @@ class Repository(private val dao: LedgerDao, val prefs: Prefs, scope: CoroutineS
      * Posts every due occurrence of auto-pay schedules up to [today]. Fixed-amount auto-pay only: variable bills
      * always wait for the user to enter the amount. Idempotent — each post advances the schedule.
      */
-    suspend fun autoPost(today: LocalDate = LocalDate.now()): Int {
+    suspend fun autoPost(today: LocalDate = LocalDate.now()): Int = autoPostLock.withLock {
+        // App start, activity start and the daily worker can all call this at once; without the lock two runs read
+        // the same schedule before either advances it and the occurrence is posted twice.
         var posted = 0
         for (r in dao.recurringNow()) {
             if (!r.active || !r.autoPay || r.variable) continue
@@ -156,7 +161,7 @@ class Repository(private val dao: LedgerDao, val prefs: Prefs, scope: CoroutineS
             }
             if (paid >= plan.periods) dao.upsert(plan.copy(status = InstallmentStatus.COMPLETED))
         }
-        return posted
+        posted
     }
 
     // ---------- setup objects ----------
